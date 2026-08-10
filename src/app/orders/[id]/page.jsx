@@ -21,6 +21,7 @@ import {
 import { exportOrderToExcel } from '@/lib/exports/excel';
 import { exportOrderToPDF } from '@/lib/exports/pdf';
 import { v4 as uuidv4 } from 'uuid';
+import { initializePermission, getPermission } from "../../../lib/permissions";
 
 const TABS = [
   { id: 'products', label: 'Products' },
@@ -79,9 +80,12 @@ export default function OrderDetailPage({ params }) {
 
     const allBOM = bomRepository.getAll();
     setBomLines(allBOM);
+    initializePermission();
   }
 
   useEffect(() => { load(); }, [id]);
+
+  const permission = getPermission('order');
 
   if (!order) return null;
 
@@ -284,17 +288,11 @@ export default function OrderDetailPage({ params }) {
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge status={order.status} />
-            <Select
-              value={order.status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="w-36"
-            >
-              {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-            </Select>
-            <Button onClick={() => setCostsModal(true)}>Costs</Button>
-            <Button onClick={handleExportExcel}>Export Excel</Button>
-            <Button onClick={handleExportPDF}>Export PDF</Button>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+            {permission === 0 ? <Select value="" disabled className="w-36"><option value="">Unavailable</option></Select> : <Select value={order.status} onChange={(e) => handleStatusChange(e.target.value)} className="w-36">{ORDER_STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</Select>}
+            <Button onClick={() => setCostsModal(true)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Costs</Button>
+            <Button onClick={handleExportExcel} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Export Excel</Button>
+            <Button onClick={handleExportPDF} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Export PDF</Button>
+            <Button variant="danger" onClick={() => setConfirmDelete(true)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Delete</Button>
           </div>
         }
       />
@@ -341,7 +339,7 @@ export default function OrderDetailPage({ params }) {
           <div>
             <div className="flex items-center justify-between mb-4">
               <p className="text-[13px] text-[#737373]">{orderLines.length} line{orderLines.length !== 1 ? 's' : ''}</p>
-              <Button variant="primary" onClick={openAddLine}>+ Add Product</Button>
+              <Button variant="primary" onClick={openAddLine} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:bg-[#f5f5f5] disabled:text-[#737373] disabled:opacity-40">+ Add Product</Button>
             </div>
             {orderLines.length === 0 ? (
               <EmptyState title="No products" description="Add products to this order." action={<Button variant="primary" onClick={openAddLine}>+ Add Product</Button>} />
@@ -374,8 +372,8 @@ export default function OrderDetailPage({ params }) {
                         <Td>{formatCurrency(costs.rsp)}</Td>
                         <Td>
                           <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => openEditLine(line)}>Edit</Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleRemoveLine(line.id)}>Remove</Button>
+                            <Button size="sm" variant="ghost" onClick={() => openEditLine(line)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Edit</Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleRemoveLine(line.id)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Remove</Button>
                           </div>
                         </Td>
                       </Tr>

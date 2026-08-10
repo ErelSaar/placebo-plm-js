@@ -14,6 +14,7 @@ import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateRequiredMaterials } from '@/lib/calculations';
 import { MATERIAL_CATEGORIES } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
+import { initializePermission, getPermission } from "../../../lib/permissions";
 
 export default function MaterialDetailPage({ params }) {
   const { id } = use(params);
@@ -68,9 +69,13 @@ export default function MaterialDetailPage({ params }) {
     })).filter((u) => u.product);
 
     setUsedInProducts({ items: usedIn, totalRequired, uom: m.unit_of_measurement });
+    
+    initializePermission();
   }
 
   useEffect(() => { load(); }, [id]);
+
+  const permission = getPermission('material');
 
   if (!material) return null;
 
@@ -129,15 +134,15 @@ export default function MaterialDetailPage({ params }) {
             <StatusBadge status={material.status} />
             {editing ? (
               <>
-                <Button onClick={() => { setEditing(false); setForm(material); }}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save Changes</Button>
+                <Button onClick={() => { setEditing(false); setForm(material); }} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Cancel</Button>
+                <Button variant="primary" onClick={handleSave} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Save Changes</Button>
               </>
             ) : (
               <>
-                <Button onClick={() => setEditing(true)}>Edit</Button>
-                <Button onClick={handleDuplicate}>Duplicate</Button>
-                <Button onClick={handleArchive}>{material.status === 'archived' ? 'Restore' : 'Archive'}</Button>
-                <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+                <Button onClick={() => setEditing(true)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Edit</Button>
+                <Button onClick={handleDuplicate} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Duplicate</Button>
+                <Button onClick={handleArchive} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">{material.status === 'archived' ? 'Restore' : 'Archive'}</Button>
+                <Button variant="danger" onClick={() => setConfirmDelete(true)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Delete</Button>
               </>
             )}
           </div>

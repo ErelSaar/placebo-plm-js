@@ -66,8 +66,8 @@ export default function ProductDetailPage({ params }) {
   }
 
   useEffect(() => { load(); }, [id]);
-  
-  const permission = getPermission('orders');
+
+  const permission = getPermission('product');
 
   if (!product) return null;
 
@@ -207,16 +207,21 @@ export default function ProductDetailPage({ params }) {
                   Edit
                 </Button>
 
-                <Select
-                  value={product.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="w-32"
-                  disabled={permission === 0}
-                >
-                  <option value="active">Active</option>
-                  <option value="archived">Archived</option>
-                  <option value="draft">Draft</option>
-                </Select>
+                {permission === 0 ? (
+                  <Select value="" disabled className="w-32">
+                    <option value="">Unavailable</option>
+                  </Select>
+                ) : (
+                  <Select
+                    value={product.status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className="w-32"
+                  >
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                    <option value="draft">Draft</option>
+                  </Select>
+                )}
 
                 <Button
                   variant="danger"
@@ -293,7 +298,18 @@ export default function ProductDetailPage({ params }) {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-[13px] font-semibold uppercase tracking-wider text-[#737373]">Bill of Materials</h2>
-              <Button variant="primary" onClick={openAddBOM}>+ Add Material</Button>
+              <Button
+                variant="primary"
+                onClick={openAddBOM}
+                disabled={permission === 0}
+                className="
+                disabled:cursor-not-allowed
+                disabled:bg-[#f5f5f5]
+                disabled:text-[#737373]
+                disabled:opacity-40   "
+              >
+                + Add Material
+              </Button>
             </div>
             {bomLines.length === 0 ? (
               <EmptyState
@@ -343,8 +359,8 @@ export default function ProductDetailPage({ params }) {
                               <Td className="text-[#737373]">{line.notes || '—'}</Td>
                               <Td>
                                 <div className="flex gap-1">
-                                  <Button size="sm" variant="ghost" onClick={() => openEditBOM(line)}>Edit</Button>
-                                  <Button size="sm" variant="ghost" onClick={() => handleDeleteBOM(line.id)}>Remove</Button>
+                                  <Button size="sm" variant="ghost" onClick={() => openEditBOM(line)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Edit</Button>
+                                  <Button size="sm" variant="ghost" onClick={() => handleDeleteBOM(line.id)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Remove</Button>
                                 </div>
                               </Td>
                             </Tr>
