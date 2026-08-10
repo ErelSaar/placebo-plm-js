@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { getUser, logout } from '@/lib/auth';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard' },
@@ -14,6 +15,13 @@ const NAV_ITEMS = [
 
 export function Nav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const user = getUser();
+
+  function handleLogout() {
+    logout();
+    router.replace('/login');
+  }
 
   function isActive(href) {
     if (href === '/') return pathname === '/';
@@ -43,10 +51,16 @@ export function Nav() {
         ))}
       </nav>
 
-      <div className="px-6 py-4 border-t border-[#e5e5e5]">
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-[#f5f5f5] text-[#737373] uppercase tracking-wider">
-          Demo Mode
-        </span>
+      <div className="px-4 py-4 border-t border-[#e5e5e5] space-y-2">
+        {user && (
+          <p className="text-[11px] text-[#737373] px-2 truncate">{user.username}</p>
+        )}
+        <button
+          onClick={handleLogout}
+          className="w-full text-left px-3 py-1.5 rounded text-[12px] text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f5f5f5] transition-colors"
+        >
+          Sign out
+        </button>
       </div>
     </aside>
   );

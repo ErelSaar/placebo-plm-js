@@ -1,6 +1,7 @@
 import './globals.css';
-import { Nav } from '@/components/nav';
 import { DemoInit } from '@/components/demo-init';
+import { AuthGuard } from '@/components/auth-guard';
+import { LayoutShell } from '@/components/layout-shell';
 
 export const metadata = {
   title: 'PLACEBO PLM',
@@ -11,9 +12,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <DemoInit />
-        <Nav />
-        <main className="ml-56 min-h-screen bg-[#fafafa]">{children}</main>
+        <AuthGuard>
+          <DemoInit />
+          <LayoutShell>{children}</LayoutShell>
+        </AuthGuard>
       </body>
     </html>
   );
