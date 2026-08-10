@@ -15,6 +15,7 @@ import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateBOMCost, calculateProductCostSummary } from '@/lib/calculations';
 import { MATERIAL_CATEGORY_GROUPS, PRODUCT_CATEGORIES } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
+import { initializePermission, getPermission } from "../../../lib/permissions";
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -61,9 +62,12 @@ export default function ProductDetailPage({ params }) {
     const productOrderIds = new Set(productOrderLines.map((l) => l.order_id));
     setOrders(allOrders.filter((o) => productOrderIds.has(o.id)));
     setOrderLines(productOrderLines);
+    initializePermission();
   }
 
   useEffect(() => { load(); }, [id]);
+  
+  const permission = getPermission('orders');
 
   if (!product) return null;
 
@@ -176,18 +180,51 @@ export default function ProductDetailPage({ params }) {
             <StatusBadge status={product.status} />
             {editing ? (
               <>
-                <Button onClick={() => { setEditing(false); setForm(product); }}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save Changes</Button>
+                <Button
+                  disabled={permission === 0}
+                  onClick={() => {
+                    setEditing(false);
+                    setForm(product);
+                  }}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  variant="primary"
+                  disabled={permission === 0}
+                  onClick={handleSave}
+                >
+                  Save Changes
+                </Button>
               </>
             ) : (
               <>
-                <Button onClick={() => setEditing(true)}>Edit</Button>
-                <Select value={product.status} onChange={(e) => handleStatusChange(e.target.value)} className="w-32">
+                <Button
+                  disabled={permission === 0}
+                  onClick={() => setEditing(true)}
+                >
+                  Edit
+                </Button>
+
+                <Select
+                  value={product.status}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className="w-32"
+                  disabled={permission === 0}
+                >
                   <option value="active">Active</option>
                   <option value="archived">Archived</option>
                   <option value="draft">Draft</option>
                 </Select>
-                <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+
+                <Button
+                  variant="danger"
+                  disabled={permission === 0}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Delete
+                </Button>
               </>
             )}
           </div>

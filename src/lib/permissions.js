@@ -23,7 +23,7 @@ function createFakeUser() {
         password: '$2b$10$FAKE_HASHED_PASSWORD_FOR_TESTING_ONLY',
         profile_picture: '',
         created_at: new Date(),
-        role: 'owner'
+        role: 'guest'
     };
 }
 
