@@ -8,6 +8,7 @@ import {
 } from '@/components/ui';
 import { supplierRepository } from '@/lib/data/suppliers';
 import { v4 as uuidv4 } from 'uuid';
+import { initializePermission, getPermission } from "../../lib/permissions";
 
 const BLANK = {
   name: '',
@@ -35,9 +36,12 @@ export default function SuppliersPage() {
 
   function load() {
     setSuppliers(supplierRepository.getAll());
+    initializePermission();
   }
 
   useEffect(() => { load(); }, []);
+
+  const permission = getPermission('suppliers');
 
   const filtered = suppliers.filter((s) => {
     const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || (s.country || '').toLowerCase().includes(search.toLowerCase());
@@ -81,7 +85,21 @@ export default function SuppliersPage() {
       <PageHeader
         title="Suppliers"
         subtitle={`${filtered.length} supplier${filtered.length !== 1 ? 's' : ''}`}
-        actions={<Button variant="primary" onClick={openModal}>+ Add Supplier</Button>}
+        actions={
+          <Button
+            variant="primary"
+            onClick={openModal}
+            disabled={permission === 0}
+            className="
+                disabled:cursor-not-allowed
+                disabled:bg-[#f5f5f5]
+                disabled:text-[#737373]
+                disabled:opacity-40
+            "
+          >
+            + Add Supplier
+          </Button>
+        }
       />
 
       <div className="px-8 py-6">

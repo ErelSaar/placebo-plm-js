@@ -10,6 +10,7 @@ import { materialRepository } from '@/lib/data/materials';
 import { supplierRepository } from '@/lib/data/suppliers';
 import { MATERIAL_CATEGORY_GROUPS, MATERIAL_CATEGORIES } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
+import { initializePermission, getPermission } from "../../lib/permissions";
 
 const BLANK = {
   name: '',
@@ -42,9 +43,12 @@ export default function MaterialsPage() {
   function load() {
     setMaterials(materialRepository.getAll());
     setSuppliers(supplierRepository.getAll());
+    initializePermission();
   }
 
   useEffect(() => { load(); }, []);
+
+  const permission = getPermission('materials');
 
   const filtered = materials.filter((m) => {
     const matchSearch = !search ||
@@ -112,7 +116,21 @@ export default function MaterialsPage() {
       <PageHeader
         title="Materials"
         subtitle={`${filtered.length} material${filtered.length !== 1 ? 's' : ''}`}
-        actions={<Button variant="primary" onClick={openModal}>+ Add Material</Button>}
+        actions={
+          <Button
+            variant="primary"
+            onClick={openModal}
+            disabled={permission === 0}
+            className="
+                disabled:cursor-not-allowed
+                disabled:bg-[#f5f5f5]
+                disabled:text-[#737373]
+                disabled:opacity-40
+            "
+          >
+            + Add Material
+          </Button>
+        }
       />
 
       <div className="px-8 py-6">

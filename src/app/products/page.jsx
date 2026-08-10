@@ -9,6 +9,7 @@ import {
 import { productRepository } from '@/lib/data/products';
 import { PRODUCT_CATEGORIES } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
+import { initializePermission, getPermission } from "../../lib/permissions";
 
 const BLANK = {
   name: '',
@@ -38,10 +39,13 @@ export default function ProductsPage() {
   const [errors, setErrors] = useState({});
 
   function load() {
+    initializePermission();
     setProducts(productRepository.getAll());
   }
 
   useEffect(() => { load(); }, []);
+
+  const permission = getPermission('products');
 
   const filtered = products.filter((p) => {
     const q = search.toLowerCase();
@@ -96,12 +100,28 @@ export default function ProductsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  console.log('Products permission:', permission);
+
   return (
     <div>
       <PageHeader
         title="Products"
         subtitle={`${filtered.length} product${filtered.length !== 1 ? 's' : ''}`}
-        actions={<Button variant="primary" onClick={openModal}>+ Add Product</Button>}
+        actions={
+          <Button
+            variant="primary"
+            onClick={openModal}
+            disabled={permission === 0}
+            className="
+                disabled:cursor-not-allowed
+                disabled:bg-[#f5f5f5]
+                disabled:text-[#737373]
+                disabled:opacity-40
+            "
+          >
+            + Add Product
+          </Button>
+        }
       />
 
       <div className="px-8 py-6">

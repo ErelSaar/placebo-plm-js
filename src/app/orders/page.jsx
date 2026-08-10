@@ -7,6 +7,7 @@ import {
   EmptyState, Input, Select, formatDate,
 } from '@/components/ui';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
+import { initializePermission, getPermission } from "../../lib/permissions";
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -19,7 +20,10 @@ export default function OrdersPage() {
     const all = orderRepository.getAll().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     setOrders(all);
     setOrderLines(orderLineRepository.getAll());
+    initializePermission();
   }, []);
+
+  const permission = getPermission('orders');
 
   const filtered = orders.filter((o) => {
     const q = search.toLowerCase();
@@ -33,10 +37,24 @@ export default function OrdersPage() {
   return (
     <div>
       <PageHeader
-        title="Orders"
-        subtitle={`${filtered.length} order${filtered.length !== 1 ? 's' : ''}`}
-        actions={<Button variant="primary" onClick={() => router.push('/orders/new')}>+ New Order</Button>}
-      />
+    title="Orders"
+    subtitle={`${filtered.length} order${filtered.length !== 1 ? 's' : ''}`}
+    actions={
+        <Button
+            variant="primary"
+            onClick={() => router.push('/orders/new')}
+            disabled={permission === 0}
+            className="
+                disabled:cursor-not-allowed
+                disabled:bg-[#f5f5f5]
+                disabled:text-[#737373]
+                disabled:opacity-40
+            "
+        >
+            + New Order
+        </Button>
+    }
+/>
 
       <div className="px-8 py-6">
         <div className="flex gap-3 mb-6">
