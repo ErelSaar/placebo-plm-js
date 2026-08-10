@@ -1,3 +1,6 @@
+import { STORAGE_KEYS } from '../lib/constants';
+import { getItems } from '../lib/data/storage';
+
 const fakeUser = {
     role: "employee"
 };
@@ -13,6 +16,17 @@ const ROLE_PERMISSIONS = {
     owner: 5
 };
 
+function createFakeUser() {
+    return {
+        id: Math.floor(Math.random() * 1000000),
+        username: `user_1`,
+        password: '$2b$10$FAKE_HASHED_PASSWORD_FOR_TESTING_ONLY',
+        profile_picture: '',
+        created_at: new Date(),
+        role: 'owner'
+    };
+}
+
 function setPermission(user) {
     if (!user) {
         permission = null;
@@ -27,9 +41,52 @@ function getPermission() {
 }
 
 function initializePermission() {
-    if (permission === null) {
+    const users = getItems(STORAGE_KEYS.logged_user);
+
+    if (users.length === 0) {
+        const fakeUser = createFakeUser();
+
+        localStorage.setItem(
+            STORAGE_KEYS.logged_user,
+            JSON.stringify([fakeUser])
+        );
+
         setPermission(fakeUser);
+        return fakeUser;
     }
+
+    const storedUser = users[0];
+    const fakeUser = createFakeUser();
+
+    const fieldsToCheck = [
+        'username',
+        'password',
+        'profile_picture',
+        'role'
+    ];
+
+    const hasChanged = fieldsToCheck.some(
+        field => storedUser[field] !== fakeUser[field]
+    );
+
+    if (hasChanged) {
+        const updatedUser = {
+            ...fakeUser,
+            id: storedUser.id,
+            created_at: storedUser.created_at
+        };
+
+        localStorage.setItem(
+            STORAGE_KEYS.logged_user,
+            JSON.stringify([updatedUser])
+        );
+
+        setPermission(updatedUser);
+        return updatedUser;
+    }
+
+    setPermission(storedUser);
+    return storedUser;
 }
 
 setPermission(fakeUser);

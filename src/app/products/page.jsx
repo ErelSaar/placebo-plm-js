@@ -100,8 +100,6 @@ export default function ProductsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  console.log('Products permission:', permission);
-
   return (
     <div>
       <PageHeader
