@@ -11,11 +11,11 @@ export function AuthGuard({ children }) {
 
   useEffect(() => {
     const user = getUser();
-    const isLoginPage = pathname === '/login';
+    const isAuthPage = pathname === '/login' || pathname === '/signup';
 
-    if (!user && !isLoginPage) {
+    if (!user && !isAuthPage) {
       router.replace('/login');
-    } else if (user && isLoginPage) {
+    } else if (user && isAuthPage) {
       router.replace('/');
     } else {
       setReady(true);

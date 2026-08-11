@@ -94,7 +94,7 @@ src/
     calculations.test.js  Jest test suite
 ```
 
-See [CODEBASE_MAP.md](CODEBASE_MAP.md) for a detailed file-by-file explanation.
+See [CODEBASE_MAP.md](https://github.com/ErelSaar/placebo-plm-documentation/blob/main/CODEBASE_MAP.md) for a detailed file-by-file explanation.
 
 ---
 
@@ -120,8 +120,12 @@ localStorage keys:
 
 ---
 
-## Important Documentation
+## Documentation
 
-- [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) — Architecture, module explanations, data flows, how to modify and extend the system.
-- [CODEBASE_MAP.md](CODEBASE_MAP.md) — Every source file explained with purpose, exports, dependencies, and when to edit it.
-- [BUSINESS_LOGIC.md](BUSINESS_LOGIC.md) — Every business calculation in plain English and formulas, with code references.
+Full developer documentation is maintained in a separate repository:
+[https://github.com/ErelSaar/placebo-plm-documentation](https://github.com/ErelSaar/placebo-plm-documentation)
+
+- [Developer Guide](https://github.com/ErelSaar/placebo-plm-documentation/blob/main/DEVELOPER_GUIDE.md) — Architecture, module explanations, data flows, how to modify and extend the system.
+- [Codebase Map](https://github.com/ErelSaar/placebo-plm-documentation/blob/main/CODEBASE_MAP.md) — Every source file explained with purpose, exports, dependencies, and when to edit it.
+- [Business Logic](https://github.com/ErelSaar/placebo-plm-documentation/blob/main/BUSINESS_LOGIC.md) — Every business calculation in plain English and formulas, with code references.
+- [Developer Handoff](https://github.com/ErelSaar/placebo-plm-documentation/blob/main/DEVELOPER_HANDOFF.md) — Handoff notes, known issues, and next steps.

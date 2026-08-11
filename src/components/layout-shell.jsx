@@ -5,9 +5,9 @@ import { Nav } from '@/components/nav';
 
 export function LayoutShell({ children }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
 
-  if (isLoginPage) {
+  if (isAuthPage) {
     return <>{children}</>;
   }
 
