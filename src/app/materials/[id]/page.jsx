@@ -178,7 +178,7 @@ export default function MaterialDetailPage({ params }) {
                     ))}
                   </Select>
                   <Input label="Supplier Item Code" value={form.supplier_item_code || ''} onChange={(e) => set('supplier_item_code', e.target.value)} />
-                  <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost ?? ''} onChange={(e) => set('unit_cost', e.target.value)} />
+                  <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost ?? ''} min={0} onChange={(e) => set('unit_cost', e.target.value)} />
                   <Input label="Currency" value={form.currency || ''} onChange={(e) => set('currency', e.target.value)} />
                   <Input label="Unit of Measurement" value={form.unit_of_measurement || ''} onChange={(e) => set('unit_of_measurement', e.target.value)} />
                   <Input label="Lead Time (days)" type="number" value={form.lead_time ?? ''} onChange={(e) => set('lead_time', e.target.value)} />
@@ -191,7 +191,7 @@ export default function MaterialDetailPage({ params }) {
                   <Field label="Category" value={material.category} />
                   <Field label="Supplier" value={supplierName} />
                   <Field label="Supplier Item Code" value={material.supplier_item_code} />
-                  <Field label="Unit Cost" value={material.unit_cost != null ? `€${material.unit_cost}` : null} />
+                  <Field label="Unit Cost" value={material.unit_cost != null ? `€${material.unit_cost}` : null}/>
                   <Field label="Currency" value={material.currency} />
                   <Field label="Unit of Measurement" value={material.unit_of_measurement} />
                   <Field label="Lead Time" value={material.lead_time != null ? `${material.lead_time} days` : null} />

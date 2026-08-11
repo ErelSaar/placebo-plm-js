@@ -1,7 +1,7 @@
 import { STORAGE_KEYS } from '../lib/constants';
 import { getItems } from '../lib/data/storage';
 
-const fakeUser = {
+var fakeUser = {
     role: "employee"
 };
 
@@ -23,7 +23,7 @@ function createFakeUser() {
         password: '$2b$10$FAKE_HASHED_PASSWORD_FOR_TESTING_ONLY',
         profile_picture: '',
         created_at: new Date(),
-        role: 'guest'
+        role: 'admin'
     };
 }
 
@@ -44,7 +44,7 @@ function initializePermission() {
     const users = getItems(STORAGE_KEYS.logged_user);
 
     if (users.length === 0) {
-        const fakeUser = createFakeUser();
+        fakeUser = createFakeUser();
 
         localStorage.setItem(
             STORAGE_KEYS.logged_user,
@@ -56,7 +56,7 @@ function initializePermission() {
     }
 
     const storedUser = users[0];
-    const fakeUser = createFakeUser();
+    let fakeUser = createFakeUser();
 
     const fieldsToCheck = [
         'username',

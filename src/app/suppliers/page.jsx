@@ -165,9 +165,9 @@ export default function SuppliersPage() {
           <Input label="Email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
           <Input label="Phone" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
           <Input label="Website" value={form.website} onChange={(e) => set('website', e.target.value)} />
-          <Input label="Lead Time (days)" type="number" value={form.lead_time} onChange={(e) => set('lead_time', e.target.value)} />
+          <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} onChange={(e) => set('lead_time', e.target.value)} />
           <Input label="Payment Terms" value={form.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} />
-          <Input label="Minimum Order Qty" type="number" value={form.minimum_order_quantity} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
+          <Input label="Minimum Order Qty" type="number" value={form.minimum_order_quantity} min={0} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
         </div>
       </Modal>

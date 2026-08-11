@@ -188,11 +188,16 @@ export default function ProductsPage() {
           <Input label="Product Name *" value={form.name} onChange={(e) => set('name', e.target.value)} error={errors.name} className="col-span-2" />
           <Input label="Style Code *" value={form.style_code} onChange={(e) => set('style_code', e.target.value)} error={errors.style_code} />
           <Input label="SKU *" value={form.sku} onChange={(e) => set('sku', e.target.value)} error={errors.sku} />
-          <Input label="Season" value={form.season} onChange={(e) => set('season', e.target.value)} />
+          <Select label="Season" value={form.season} onChange={(e) => set('season', e.target.value)}>
+            <option value="spring">Spring</option>
+            <option value="summer">Summer</option>
+            <option value="autumn">Autumn</option>
+            <option value="winter">Winter</option>
+          </Select>
           <Select label="Category" value={form.category} onChange={(e) => set('category', e.target.value)}>
             {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
-          <Input label="Selling Price" type="number" value={form.selling_price} onChange={(e) => set('selling_price', e.target.value)} />
+          <Input label="Selling Price" type="number" value={form.selling_price} min={0} onChange={(e) => set('selling_price', e.target.value)} />
           <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />

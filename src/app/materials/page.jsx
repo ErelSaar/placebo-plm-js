@@ -233,11 +233,11 @@ export default function MaterialsPage() {
             ))}
           </Select>
           <Input label="Supplier Item Code" value={form.supplier_item_code} onChange={(e) => set('supplier_item_code', e.target.value)} />
-          <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost} onChange={(e) => set('unit_cost', e.target.value)} />
+          <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost} min={0} onChange={(e) => set('unit_cost', e.target.value)} />
           <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
           <Input label="Unit of Measurement" value={form.unit_of_measurement} onChange={(e) => set('unit_of_measurement', e.target.value)} />
-          <Input label="Lead Time (days)" type="number" value={form.lead_time} onChange={(e) => set('lead_time', e.target.value)} />
-          <Input label="Min. Order Qty" type="number" value={form.minimum_order_quantity} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
+          <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} onChange={(e) => set('lead_time', e.target.value)} />
+          <Input label="Min. Order Qty" type="number" value={form.minimum_order_quantity} min={0} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
         </div>
