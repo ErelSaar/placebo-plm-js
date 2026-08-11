@@ -16,6 +16,7 @@ const BLANK = {
   name: '',
   internal_code: '',
   category: 'fabric',
+  color: '',
   description: '',
   supplier_id: '',
   supplier_item_code: '',
@@ -134,6 +135,7 @@ export default function MaterialsPage() {
       <Td className="font-medium">{m.name}</Td>
       <Td>{m.internal_code || '—'}</Td>
       <Td>{m.category}</Td>
+      <Td>{m.color || '—'}</Td>
       <Td>{supplierName(m.supplier_id)}</Td>
       <Td>{m.unit_cost != null ? `€${m.unit_cost}` : '—'}</Td>
       <Td>{m.unit_of_measurement || '—'}</Td>
@@ -206,6 +208,7 @@ export default function MaterialsPage() {
                         <Th>Material</Th>
                         <Th>Code</Th>
                         <Th>Category</Th>
+                        <Th>Color</Th>
                         <Th>Supplier</Th>
                         <Th>Unit Cost</Th>
                         <Th>UOM</Th>
@@ -227,6 +230,7 @@ export default function MaterialsPage() {
                 <Th>Material</Th>
                 <Th>Code</Th>
                 <Th>Category</Th>
+                <Th>Color</Th>
                 <Th>Supplier</Th>
                 <Th>Unit Cost</Th>
                 <Th>UOM</Th>
@@ -256,6 +260,7 @@ export default function MaterialsPage() {
           <Select label="Category *" value={form.category} onChange={(e) => set('category', e.target.value)} error={errors.category}>
             {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
+          <Input label="Color" value={form.color} onChange={(e) => set('color', e.target.value)} />
           <Select label="Supplier" value={form.supplier_id} onChange={(e) => set('supplier_id', e.target.value)}>
             <option value="">No Supplier</option>
             {suppliers.filter((s) => s.status === 'active').map((s) => (

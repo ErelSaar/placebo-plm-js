@@ -217,6 +217,7 @@ export default function MaterialDetailPage({ params }) {
                   <Select label="Category" value={form.category || ''} error={errors.category} onChange={(e) => set('category', e.target.value)}>
                     {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </Select>
+                  <Input label="Color" value={form.color || ''} onChange={(e) => set('color', e.target.value)} />
                   <Select label="Supplier" value={form.supplier_id || ''} onChange={(e) => set('supplier_id', e.target.value)}>
                     <option value="">No Supplier</option>
                     {suppliers.filter((s) => s.status === 'active').map((s) => (
@@ -235,6 +236,7 @@ export default function MaterialDetailPage({ params }) {
               ) : (
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                   <Field label="Category" value={material.category} />
+                  <Field label="Color" value={material.color} />
                   <Field label="Supplier" value={supplierName} />
                   <Field label="Supplier Item Code" value={material.supplier_item_code} />
                   <Field label="Unit Cost" value={material.unit_cost != null ? `€${material.unit_cost}` : null} />
