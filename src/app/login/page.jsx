@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { login, getUser } from '@/lib/auth';
 import { Input, Button } from '@/components/ui';
 
@@ -80,6 +81,13 @@ export default function LoginPage() {
             </Button>
           </form>
         </div>
+
+        <p className="text-center text-[12px] text-[#737373] mt-5">
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" className="text-[#0a0a0a] font-medium hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );
