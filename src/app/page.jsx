@@ -9,6 +9,7 @@ import { supplierRepository } from '@/lib/data/suppliers';
 import { bomRepository } from '@/lib/data/bom';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { getApproachingOrders } from '@/lib/calculations';
+import { initializePermission } from '@/lib/permissions';
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   }, []);
 
   if (!data) return null;
+  initializePermission();
 
   const { stats, recentOrders, approaching, missingBOM, orderLines } = data;
 

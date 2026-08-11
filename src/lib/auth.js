@@ -40,7 +40,7 @@ export function registerUser({ name, username, email, password }) {
     email,
     // NOTE: plaintext password — intentionally temporary dev storage only.
     password,
-    role: 'guest', // lowest permission level (ROLE_PERMISSIONS.guest = 0)
+    role: 'viewer', // lowest permission level (ROLE_PERMISSIONS.guest = 0)
   };
 
   saveRegisteredUsers([...users, newUser]);
@@ -53,12 +53,13 @@ export function login(username, password) {
   // 1. Check built-in admin account.
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     const user = { username: ADMIN_USERNAME, name: 'Placebo Admin', role: 'admin' };
-    localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEYS.logged_user, JSON.stringify(user));
     return { ok: true, user };
   }
 
   // 2. Check registered users.
   const users = getRegisteredUsers();
+  console.log(users)
   const found = users.find(
     (u) =>
       u.username.toLowerCase() === username.toLowerCase() &&
@@ -67,7 +68,7 @@ export function login(username, password) {
 
   if (found) {
     const user = { username: found.username, name: found.name, role: found.role };
-    localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEYS.logged_user, JSON.stringify(user));
     return { ok: true, user };
   }
 

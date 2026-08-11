@@ -56,6 +56,5 @@ export const STORAGE_KEYS = {
   order_lines: 'plm_order_lines',
   initialized: 'plm_initialized_v3',
   logged_user: 'plm_logged_user',
-  user: 'plm_user',
   registered_users: 'plm_registered_users',
 };
