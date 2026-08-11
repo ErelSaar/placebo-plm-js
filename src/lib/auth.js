@@ -59,7 +59,6 @@ export function login(username, password) {
 
   // 2. Check registered users.
   const users = getRegisteredUsers();
-  console.log(users)
   const found = users.find(
     (u) =>
       u.username.toLowerCase() === username.toLowerCase() &&

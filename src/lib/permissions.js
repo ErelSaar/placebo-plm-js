@@ -16,7 +16,6 @@ const ROLE_PERMISSIONS = {
 };
 
 function setPermission(user) {
-    console.log(user)
     if (!user) {
         permission = null;
         return;
