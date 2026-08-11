@@ -2,18 +2,17 @@ import { STORAGE_KEYS } from '../lib/constants';
 import { getItems } from '../lib/data/storage';
 
 var fakeUser = {
-    role: "employee"
+    role: "editor"
 };
 
 let permission = null;
 
 const ROLE_PERMISSIONS = {
-    guest: 0,
+    viewer: 0,
     supplier: 1,
-    employee: 2,
-    manager: 3,
-    admin: 4,
-    owner: 5
+    editor: 2,
+    admin: 3,
+    owner: 4
 };
 
 function createFakeUser() {
@@ -23,7 +22,7 @@ function createFakeUser() {
         password: '$2b$10$FAKE_HASHED_PASSWORD_FOR_TESTING_ONLY',
         profile_picture: '',
         created_at: new Date(),
-        role: 'manager'
+        role: 'admin'
     };
 }
 
