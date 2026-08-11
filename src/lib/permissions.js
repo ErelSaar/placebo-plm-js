@@ -31,18 +31,6 @@ function getPermission() {
 function initializePermission() {
     const users = getItems(STORAGE_KEYS.logged_user);
 
-    // if (users.length === 0) {
-    //     fakeUser = createFakeUser();
-
-    //     localStorage.setItem(
-    //         STORAGE_KEYS.logged_user,
-    //         JSON.stringify([fakeUser])
-    //     );
-
-    //     setPermission(fakeUser);
-    //     return fakeUser;
-    // }
-
     const storedUser = users;
     setPermission(storedUser);
 }
