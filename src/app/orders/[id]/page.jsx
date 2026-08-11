@@ -531,7 +531,7 @@ export default function OrderDetailPage({ params }) {
                 ) : (
                   <Table>
                     <Thead>
-                      <tr>
+                      <tr className="overflow-x-auto">
                         <Th>Product</Th>
                         <Th>Color</Th>
                         <Th>Mat.</Th>
@@ -590,6 +590,7 @@ export default function OrderDetailPage({ params }) {
                 type="number"
                 step="0.01"
                 value={costsForm.shipping_cost}
+                min={0}
                 onChange={(e) => setCosts('shipping_cost', e.target.value)}
               />
             </div>
@@ -607,6 +608,7 @@ export default function OrderDetailPage({ params }) {
                 type="number"
                 step="0.01"
                 value={costsForm.customs_cost}
+                min={0}
                 onChange={(e) => setCosts('customs_cost', e.target.value)}
               />
             </div>
