@@ -50,6 +50,7 @@ export default function OrderDetailPage({ params }) {
   const [lineForm, setLineForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [allProductsList, setAllProductsList] = useState([]);
+  const [errors, setErrors] = useState({});
 
   function load() {
     const o = orderRepository.getById(id);
@@ -107,9 +108,49 @@ export default function OrderDetailPage({ params }) {
   const totalUnits = orderLines.reduce((acc, l) => acc + l.quantity, 0);
   const pricingMultiplier = 3.5; // use product-level multiplier in exports, 3.5 as default for display
 
+  function validate() {
+    const errs = {};
+
+    if (!metaForm.order_number?.trim()) {
+      errs.order_number = 'Order number is required';
+    }
+
+    if (!metaForm.order_name?.trim()) {
+      errs.order_name = 'Order name is required';
+    }
+
+    if (!metaForm.season) {
+      errs.season = 'Season is required';
+    }
+
+    if (!metaForm.order_currency?.trim()) {
+      errs.order_currency = 'Currency is required';
+    }
+
+    if (!metaForm.order_date) {
+      errs.order_date = 'Order date is required';
+    }
+
+    if (!metaForm.target_date) {
+      errs.target_date = 'Target date is required';
+    }
+
+    if (!metaForm.production_country?.trim()) {
+      errs.production_country = 'Production country is required';
+    }
+
+    if (!metaForm.shipping_destination?.trim()) {
+      errs.shipping_destination = 'Shipping destination is required';
+    }
+
+    return errs;
+  }
+
   // ─── Meta edit ────────────────────────────────────────────────────────────
 
   function handleSaveMeta() {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     orderRepository.update(id, metaForm);
     setEditingMeta(false);
     load();
@@ -302,14 +343,19 @@ export default function OrderDetailPage({ params }) {
         {editingMeta ? (
           <Card className="p-4">
             <div className="grid grid-cols-4 gap-4">
-              <Input label="Order Number" value={metaForm.order_number || ''} onChange={(e) => setMeta('order_number', e.target.value)} />
-              <Input label="Order Name" value={metaForm.order_name || ''} onChange={(e) => setMeta('order_name', e.target.value)} />
-              <Input label="Season" value={metaForm.season || ''} onChange={(e) => setMeta('season', e.target.value)} />
-              <Input label="Currency" value={metaForm.order_currency || ''} onChange={(e) => setMeta('order_currency', e.target.value)} />
-              <Input label="Order Date" type="date" value={metaForm.order_date || ''} onChange={(e) => setMeta('order_date', e.target.value)} />
-              <Input label="Target Date" type="date" value={metaForm.target_date || ''} onChange={(e) => setMeta('target_date', e.target.value)} />
-              <Input label="Production Country" value={metaForm.production_country || ''} onChange={(e) => setMeta('production_country', e.target.value)} />
-              <Input label="Shipping Destination" value={metaForm.shipping_destination || ''} onChange={(e) => setMeta('shipping_destination', e.target.value)} />
+              <Input label="Order Number" value={metaForm.order_number || ''} error={errors.order_number} onChange={(e) => setMeta('order_number', e.target.value)} />
+              <Input label="Order Name" value={metaForm.order_name || ''} error={errors.order_name} onChange={(e) => setMeta('order_name', e.target.value)} />
+              <Select label="Season" value={metaForm.season || ''} onChange={(e) => setMeta('season', e.target.value)}>
+                <option value="spring">Spring</option>
+                <option value="summer">Summer</option>
+                <option value="autumn">Autumn</option>
+                <option value="winter">Winter</option>
+              </Select>
+              <Input label="Currency" value={metaForm.order_currency || ''} error={errors.order_currency} onChange={(e) => setMeta('order_currency', e.target.value)} />
+              <Input label="Order Date" type="date" value={metaForm.order_date || ''} error={errors.order_date} onChange={(e) => setMeta('order_date', e.target.value)} />
+              <Input label="Target Date" type="date" value={metaForm.target_date || ''} error={errors.target_date} onChange={(e) => setMeta('target_date', e.target.value)} />
+              <Input label="Production Country" value={metaForm.production_country || ''} error={errors.production_country} onChange={(e) => setMeta('production_country', e.target.value)} />
+              <Input label="Shipping Destination" value={metaForm.shipping_destination || ''} error={errors.shipping_destination} onChange={(e) => setMeta('shipping_destination', e.target.value)} />
             </div>
             <div className="flex gap-2 mt-4">
               <Button onClick={() => { setEditingMeta(false); setMetaForm(order); }}>Cancel</Button>

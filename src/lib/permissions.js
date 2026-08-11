@@ -9,10 +9,10 @@ let permission = null;
 
 const ROLE_PERMISSIONS = {
     guest: 0,
-    employee: 1,
-    manager: 2,
-    admin: 3,
-    superadmin: 4,
+    supplier: 1,
+    employee: 2,
+    manager: 3,
+    admin: 4,
     owner: 5
 };
 
@@ -23,7 +23,7 @@ function createFakeUser() {
         password: '$2b$10$FAKE_HASHED_PASSWORD_FOR_TESTING_ONLY',
         profile_picture: '',
         created_at: new Date(),
-        role: 'admin'
+        role: 'manager'
     };
 }
 

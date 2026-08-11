@@ -73,11 +73,57 @@ export default function NewOrderPage() {
 
   function validate(status) {
     const errs = {};
-    if (!form.order_number.trim()) errs.order_number = 'Order number is required';
-    else if (orderRepository.orderNumberExists(form.order_number)) errs.order_number = 'Order number already exists';
-    if (!form.order_name.trim()) errs.order_name = 'Order name is required';
-    if (status === 'confirmed' && lines.length === 0) errs.lines = 'At least one product is required to confirm an order';
-    if (hasDuplicate()) errs.lines = 'Duplicate product + color + size combinations are not allowed';
+
+    if (!form.order_number?.trim()) {
+      errs.order_number = 'Order number is required';
+    } else if (orderRepository.orderNumberExists(form.order_number)) {
+      errs.order_number = 'Order number already exists';
+    }
+
+    if (!form.order_name?.trim()) {
+      errs.order_name = 'Order name is required';
+    }
+
+    if (!form.season) {
+      errs.season = 'Season is required';
+    }
+
+    if (!form.order_currency?.trim()) {
+      errs.order_currency = 'Currency is required';
+    }
+
+    if (!form.order_date) {
+      errs.order_date = 'Order date is required';
+    }
+
+    if (!form.target_date) {
+      errs.target_date = 'Target date is required';
+    }
+
+    if (!form.production_country?.trim()) {
+      errs.production_country = 'Production country is required';
+    }
+
+    if (!form.production_factory?.trim()) {
+      errs.production_factory = 'Production factory is required';
+    }
+
+    if (!form.shipping_destination?.trim()) {
+      errs.shipping_destination = 'Shipping destination is required';
+    }
+
+    if (!form.destination_address?.trim()) {
+      errs.destination_address = 'Destination address is required';
+    }
+
+    if (status === 'confirmed' && lines.length === 0) {
+      errs.lines = 'At least one product is required to confirm an order';
+    }
+
+    if (hasDuplicate()) {
+      errs.lines = 'Duplicate product + color + size combinations are not allowed';
+    }
+
     return errs;
   }
 
@@ -131,15 +177,20 @@ export default function NewOrderPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Order Number *" value={form.order_number} onChange={(e) => set('order_number', e.target.value)} error={errors.order_number} />
                 <Input label="Order Name *" value={form.order_name} onChange={(e) => set('order_name', e.target.value)} error={errors.order_name} />
-                <Input label="Season" value={form.season} onChange={(e) => set('season', e.target.value)} />
-                <Input label="Currency" value={form.order_currency} onChange={(e) => set('order_currency', e.target.value)} />
-                <Input label="Order Date" type="date" value={form.order_date} onChange={(e) => set('order_date', e.target.value)} />
-                <Input label="Target Date" type="date" value={form.target_date} onChange={(e) => set('target_date', e.target.value)} />
-                <Input label="Production Country" value={form.production_country} onChange={(e) => set('production_country', e.target.value)} />
-                <Input label="Production Factory" value={form.production_factory} onChange={(e) => set('production_factory', e.target.value)} />
-                <Input label="Shipping Destination" value={form.shipping_destination} onChange={(e) => set('shipping_destination', e.target.value)} />
-                <Input label="Destination Address" value={form.destination_address} onChange={(e) => set('destination_address', e.target.value)} />
-                <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
+                <Select label="Season" value={form.season} onChange={(e) => set('season', e.target.value)} error={errors.season}>
+                  <option value="spring">Spring</option>
+                  <option value="summer">Summer</option>
+                  <option value="autumn">Autumn</option>
+                  <option value="winter">Winter</option>
+                </Select>
+                <Input label="Currency" value={form.order_currency} onChange={(e) => set('order_currency', e.target.value)} error={errors.order_currency} />
+                <Input label="Order Date" type="date" value={form.order_date} onChange={(e) => set('order_date', e.target.value)} error={errors.order_date} />
+                <Input label="Target Date" type="date" value={form.target_date} onChange={(e) => set('target_date', e.target.value)} error={errors.target_date} />
+                <Input label="Production Country" value={form.production_country} onChange={(e) => set('production_country', e.target.value)} error={errors.production_country} />
+                <Input label="Production Factory" value={form.production_factory} onChange={(e) => set('production_factory', e.target.value)} error={errors.production_factory} />
+                <Input label="Shipping Destination" value={form.shipping_destination} onChange={(e) => set('shipping_destination', e.target.value)} error={errors.shipping_destination} />
+                <Input label="Destination Address" value={form.destination_address} onChange={(e) => set('destination_address', e.target.value)} error={errors.destination_address} />
+                <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} error={errors.notes} className="col-span-2" />
               </div>
             </Section>
           </Card>

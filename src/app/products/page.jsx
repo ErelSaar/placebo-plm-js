@@ -68,6 +68,9 @@ export default function ProductsPage() {
     const errs = {};
     const all = productRepository.getAll();
     if (!form.name.trim()) errs.name = 'Name is required';
+    if (!form.selling_price || Number(form.selling_price) <= 0) {
+      errs.selling_price = 'Selling price must be greater than 0';
+    }
     if (!form.style_code.trim()) {
       errs.style_code = 'Style code is required';
     } else if (all.some((p) => p.style_code === form.style_code)) {
@@ -84,6 +87,7 @@ export default function ProductsPage() {
   function handleSave() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
     const id = uuidv4();
     productRepository.create({
       id,
@@ -197,7 +201,7 @@ export default function ProductsPage() {
           <Select label="Category" value={form.category} onChange={(e) => set('category', e.target.value)}>
             {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
-          <Input label="Selling Price" type="number" value={form.selling_price} min={0} onChange={(e) => set('selling_price', e.target.value)} />
+          <Input label="Selling Price" type="number" value={form.selling_price} min={0} error={errors.selling_price}  onChange={(e) => set('selling_price', e.target.value)} />
           <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />

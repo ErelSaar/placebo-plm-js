@@ -41,6 +41,7 @@ export default function ProductDetailPage({ params }) {
   const [editBomLine, setEditBomLine] = useState(null);
   const [bomForm, setBomForm] = useState({ material_id: '', quantity_per_unit: '', notes: '' });
   const [multiplier, setMultiplier] = useState(3.5);
+  const [errors, setErrors] = useState({});
 
   function load() {
     const p = productRepository.getById(id);
@@ -76,6 +77,9 @@ export default function ProductDetailPage({ params }) {
   }
 
   function handleSave() {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
     productRepository.update(id, {
       ...form,
       selling_price: form.selling_price !== '' && form.selling_price != null ? Number(form.selling_price) : null,
@@ -123,6 +127,24 @@ export default function ProductDetailPage({ params }) {
     setEditBomLine(line);
     setBomForm({ material_id: line.material_id, quantity_per_unit: line.quantity_per_unit, notes: line.notes || '' });
     setBomModal(true);
+  }
+
+  function validate() {
+    const errs = {};
+
+    if (!form.name?.trim()) {
+      errs.name = 'Name is required';
+    }
+
+    if (
+      form.selling_price === '' ||
+      form.selling_price == null ||
+      Number(form.selling_price) <= 0
+    ) {
+      errs.selling_price = 'Selling price must be greater than 0';
+    }
+
+    return errs;
   }
 
   function handleSaveBOM() {
@@ -248,16 +270,21 @@ export default function ProductDetailPage({ params }) {
               <Section title="Product Information">
                 {editing ? (
                   <div className="grid grid-cols-2 gap-4">
-                    <Input label="Product Name" value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
-                    <Input label="Style Code" value={form.style_code || ''} onChange={(e) => set('style_code', e.target.value)} />
-                    <Input label="SKU" value={form.sku || ''} onChange={(e) => set('sku', e.target.value)} />
-                    <Input label="Season" value={form.season || ''} onChange={(e) => set('season', e.target.value)} />
+                    <Input label="Product Name" value={form.name || ''} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
+                    <Input label="Style Code" value={form.style_code || ''} error={errors.style_code} onChange={(e) => set('style_code', e.target.value)} />
+                    <Input label="SKU" value={form.sku || ''}  error={errors.sku} onChange={(e) => set('sku', e.target.value)} />
+                    <Select label="Season" value={form.season} onChange={(e) => set('season', e.target.value)}>
+                      <option value="spring">Spring</option>
+                      <option value="summer">Summer</option>
+                      <option value="autumn">Autumn</option>
+                      <option value="winter">Winter</option>
+                    </Select>
                     <Select label="Category" value={form.category || ''} onChange={(e) => set('category', e.target.value)}>
                       {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </Select>
-                    <Input label="Selling Price" type="number" value={form.selling_price ?? ''} onChange={(e) => set('selling_price', e.target.value)} />
+                    <Input label="Selling Price" type="number" value={form.selling_price ?? ''} min={0} error={errors.selling_price} onChange={(e) => set('selling_price', e.target.value)} />
                     <Input label="Currency" value={form.currency || ''} onChange={(e) => set('currency', e.target.value)} />
-                    <Input label="Pricing Multiplier" type="number" step="0.1" value={form.pricing_multiplier ?? 3.5} onChange={(e) => set('pricing_multiplier', e.target.value)} />
+                    <Input label="Pricing Multiplier" type="number" step="0.1" value={form.pricing_multiplier ?? 3.5} min={0.1} onChange={(e) => set('pricing_multiplier', e.target.value)} />
                     <Textarea label="Description" value={form.description || ''} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
                     <Textarea label="Notes" value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
                   </div>

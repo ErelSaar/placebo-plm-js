@@ -57,7 +57,47 @@ export default function SuppliersPage() {
 
   function validate() {
     const errs = {};
-    if (!form.name.trim()) errs.name = 'Name is required';
+
+    if (!form.name?.trim()) {
+      errs.name = 'Supplier name is required';
+    }
+
+    if (!form.country?.trim()) {
+      errs.country = 'Country is required';
+    }
+
+    if (!form.currency?.trim()) {
+      errs.currency = 'Currency is required';
+    }
+
+    if (!form.contact_person?.trim()) {
+      errs.contact_person = 'Contact person is required';
+    }
+
+    if (!form.email?.trim()) {
+      errs.email = 'Email is required';
+    }
+
+    if (!form.phone?.trim()) {
+      errs.phone = 'Phone is required';
+    }
+
+    if (!form.website?.trim()) {
+      errs.website = 'Website is required';
+    }
+
+    if (form.lead_time === '' || form.lead_time == null || Number(form.lead_time) <= 0) {
+      errs.lead_time = 'Lead time must be greater than 0';
+    }
+
+    if (!form.payment_terms?.trim()) {
+      errs.payment_terms = 'Payment terms are required';
+    }
+
+    if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
+      errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
+    }
+
     return errs;
   }
 
@@ -158,16 +198,16 @@ export default function SuppliersPage() {
         </>}
       >
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Supplier Name *" value={form.name} onChange={(e) => set('name', e.target.value)} error={errors.name} className="col-span-2" />
-          <Input label="Country" value={form.country} onChange={(e) => set('country', e.target.value)} />
-          <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
-          <Input label="Contact Person" value={form.contact_person} onChange={(e) => set('contact_person', e.target.value)} />
-          <Input label="Email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
-          <Input label="Phone" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
-          <Input label="Website" value={form.website} onChange={(e) => set('website', e.target.value)} />
-          <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} onChange={(e) => set('lead_time', e.target.value)} />
-          <Input label="Payment Terms" value={form.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} />
-          <Input label="Minimum Order Qty" type="number" value={form.minimum_order_quantity} min={0} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
+          <Input label="Supplier Name *" value={form.name} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
+          <Input label="Country" value={form.country} error={errors.country} onChange={(e) => set('country', e.target.value)} />
+          <Input label="Currency" value={form.currency} error={errors.currency} onChange={(e) => set('currency', e.target.value)} />
+          <Input label="Contact Person" value={form.contact_person} error={errors.contact_person} onChange={(e) => set('contact_person', e.target.value)} />
+          <Input label="Email" type="email" value={form.email} error={errors.email} onChange={(e) => set('email', e.target.value)} />
+          <Input label="Phone" value={form.phone} error={errors.phone} onChange={(e) => set('phone', e.target.value)} />
+          <Input label="Website" value={form.website} error={errors.website} onChange={(e) => set('website', e.target.value)} />
+          <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} error={errors.lead_time} onChange={(e) => set('lead_time', e.target.value)} />
+          <Input label="Payment Terms" value={form.payment_terms} error={errors.payment_terms} onChange={(e) => set('payment_terms', e.target.value)} />
+          <Input label="Minimum Order Qty" type="number" value={form.minimum_order_quantity} min={0} error={errors.minimum_order_quantity} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
         </div>
       </Modal>

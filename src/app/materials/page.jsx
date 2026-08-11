@@ -69,11 +69,41 @@ export default function MaterialsPage() {
 
   function validate() {
     const errs = {};
-    if (!form.name.trim()) errs.name = 'Name is required';
-    if (!form.category) errs.category = 'Category is required';
+
+    if (!form.name?.trim()) {
+      errs.name = 'Material name is required';
+    }
+
+    if (!form.internal_code?.trim()) {
+      errs.internal_code = 'Internal code is required';
+    }
+
+    if (!form.supplier_item_code?.trim()) {
+      errs.supplier_item_code = 'Supplier item code is required';
+    }
+
+    if (form.unit_cost === '' || form.unit_cost == null || Number(form.unit_cost) <= 0) {
+      errs.unit_cost = 'Unit cost must be greater than 0';
+    }
+
+    if (!form.currency?.trim()) {
+      errs.currency = 'Currency is required';
+    }
+
+    if (!form.unit_of_measurement?.trim()) {
+      errs.unit_of_measurement = 'Unit of measurement is required';
+    }
+
+    if (form.lead_time === '' || form.lead_time == null || Number(form.lead_time) <= 0) {
+      errs.lead_time = 'Lead time must be greater than 0';
+    }
+
+    if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
+      errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
+    }
+
     return errs;
   }
-
   function handleSave() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
@@ -221,8 +251,8 @@ export default function MaterialsPage() {
         </>}
       >
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Material Name *" value={form.name} onChange={(e) => set('name', e.target.value)} error={errors.name} className="col-span-2" />
-          <Input label="Internal Code" value={form.internal_code} onChange={(e) => set('internal_code', e.target.value)} />
+          <Input label="Material Name *" value={form.name} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
+          <Input label="Internal Code" value={form.internal_code} error={errors.internal_code} onChange={(e) => set('internal_code', e.target.value)} />
           <Select label="Category *" value={form.category} onChange={(e) => set('category', e.target.value)} error={errors.category}>
             {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
@@ -232,12 +262,12 @@ export default function MaterialsPage() {
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </Select>
-          <Input label="Supplier Item Code" value={form.supplier_item_code} onChange={(e) => set('supplier_item_code', e.target.value)} />
-          <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost} min={0} onChange={(e) => set('unit_cost', e.target.value)} />
-          <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
-          <Input label="Unit of Measurement" value={form.unit_of_measurement} onChange={(e) => set('unit_of_measurement', e.target.value)} />
-          <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} onChange={(e) => set('lead_time', e.target.value)} />
-          <Input label="Min. Order Qty" type="number" value={form.minimum_order_quantity} min={0} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
+          <Input label="Supplier Item Code" value={form.supplier_item_code} error={errors.supplier_item_code} onChange={(e) => set('supplier_item_code', e.target.value)} />
+          <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost} min={0} error={errors.unit_cost} onChange={(e) => set('unit_cost', e.target.value)} />
+          <Input label="Currency" value={form.currency} error={errors.currency} onChange={(e) => set('currency', e.target.value)} />
+          <Input label="Unit of Measurement" value={form.unit_of_measurement} error={errors.unit_of_measurement} onChange={(e) => set('unit_of_measurement', e.target.value)} />
+          <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} error={errors.lead_time} onChange={(e) => set('lead_time', e.target.value)} />
+          <Input label="Min. Order Qty" type="number" value={form.minimum_order_quantity} min={0} error={errors.minimum_order_quantity} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
         </div>
