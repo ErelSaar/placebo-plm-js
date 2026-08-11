@@ -52,7 +52,7 @@ export function registerUser({ name, username, email, password }) {
 export function login(username, password) {
   // 1. Check built-in admin account.
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    const user = { username: ADMIN_USERNAME, name: 'Placebo Admin', role: 'admin' };
+    const user = { username: ADMIN_USERNAME, name: 'Placebo Admin', role: 'owner' };
     localStorage.setItem(STORAGE_KEYS.logged_user, JSON.stringify(user));
     return { ok: true, user };
   }
@@ -72,6 +72,25 @@ export function login(username, password) {
   }
 
   return { ok: false };
+}
+
+// ─── Role management ─────────────────────────────────────────────────────────
+
+export function updateUserRole(userId, newRole) {
+  const users = getRegisteredUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx < 0) return { ok: false, error: 'User not found' };
+
+  users[idx] = { ...users[idx], role: newRole };
+  saveRegisteredUsers(users);
+
+  // If this user is currently logged in, update their session too
+  const currentUser = getUser();
+  if (currentUser && currentUser.username === users[idx].username) {
+    localStorage.setItem(STORAGE_KEYS.logged_user, JSON.stringify({ ...currentUser, role: newRole }));
+  }
+
+  return { ok: true };
 }
 
 // ─── Session helpers ─────────────────────────────────────────────────────────

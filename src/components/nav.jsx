@@ -17,6 +17,7 @@ export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const user = getUser();
+  const isOwner = user?.role === 'owner';
 
   function handleLogout() {
     logout();
@@ -49,6 +50,18 @@ export function Nav() {
             {item.label}
           </Link>
         ))}
+        {isOwner && (
+          <Link
+            href="/user-management"
+            className={`block px-3 py-2 rounded text-[13px] font-medium mb-1 transition-colors ${
+              isActive('/user-management')
+                ? 'bg-[#0a0a0a] text-white'
+                : 'text-[#525252] hover:text-[#0a0a0a] hover:bg-[#f5f5f5]'
+            }`}
+          >
+            User Management
+          </Link>
+        )}
       </nav>
 
       <div className="px-4 py-4 border-t border-[#e5e5e5] space-y-2">
