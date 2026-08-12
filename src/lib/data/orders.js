@@ -6,17 +6,21 @@ const LINE_KEY = STORAGE_KEYS.order_lines;
 
 export const orderRepository = {
   getAll() {
-    return getItems(ORDER_KEY);
+    return getItems(ORDER_KEY).filter((o) => !o.spam);
+  },
+
+  getSpam() {
+    return getItems(ORDER_KEY).filter((o) => o.spam === true);
   },
 
   getById(id) {
-    return getItems(ORDER_KEY).find((o) => o.id === id) ?? null;
+    return getItems(ORDER_KEY).find((o) => o.id === id && !o.spam) ?? null;
   },
 
   create(data) {
     const all = getItems(ORDER_KEY);
     const now = new Date().toISOString();
-    const item = { ...data, created_at: now, updated_at: now };
+    const item = { ...data, spam: false, created_at: now, updated_at: now };
     setItems(ORDER_KEY, [...all, item]);
     return item;
   },
@@ -31,10 +35,18 @@ export const orderRepository = {
     return updated;
   },
 
-  remove(id) {
+  softDelete(id) {
+    return this.update(id, { spam: true });
+  },
+
+  restore(id) {
+    return this.update(id, { spam: false });
+  },
+
+  hardDelete(id) {
     const all = getItems(ORDER_KEY).filter((o) => o.id !== id);
     setItems(ORDER_KEY, all);
-    // Also remove all order lines for this order
+    // Also permanently remove all order lines for this order
     const lines = getItems(LINE_KEY).filter((l) => l.order_id !== id);
     setItems(LINE_KEY, lines);
   },

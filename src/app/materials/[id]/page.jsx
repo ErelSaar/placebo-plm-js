@@ -204,19 +204,12 @@ export default function MaterialDetailPage({ params }) {
   }
 
   function handleDelete() {
-    const material = materialRepository.getById(id);
-
-    // Remove all BOM lines referencing this material
-    const allBOM = bomRepository.getAll();
-    const toRemove = allBOM.filter((b) => b.material_id === id);
-    toRemove.forEach((b) => bomRepository.remove(b.id));
-
-    materialRepository.remove(id);
+    materialRepository.softDelete(id);
 
     recordRepository.create({
       user_id: currentUser.id,
       action: 'DELETE',
-      entity_type: 'material',
+      entity_type: 'Material',
       entity_id: id,
       before: material,
       after: null,
@@ -358,7 +351,7 @@ export default function MaterialDetailPage({ params }) {
           <Button variant="danger" onClick={handleDelete}>Delete</Button>
         </>}
       >
-        <p className="text-[13px]">Are you sure you want to delete <strong>{material.name}</strong>? This will also remove it from any BOM lines. This cannot be undone.</p>
+        <p className="text-[13px]">Are you sure you want to delete <strong>{material.name}</strong>? The material will be moved to Spam and can be restored by an Owner.</p>
       </Modal>
     </div>
   );

@@ -5,17 +5,21 @@ const KEY = STORAGE_KEYS.materials;
 
 export const materialRepository = {
   getAll() {
-    return getItems(KEY);
+    return getItems(KEY).filter((m) => !m.spam);
+  },
+
+  getSpam() {
+    return getItems(KEY).filter((m) => m.spam === true);
   },
 
   getById(id) {
-    return getItems(KEY).find((m) => m.id === id) ?? null;
+    return getItems(KEY).find((m) => m.id === id && !m.spam) ?? null;
   },
 
   create(data) {
     const all = getItems(KEY);
     const now = new Date().toISOString();
-    const item = { ...data, created_at: now, updated_at: now };
+    const item = { ...data, spam: false, created_at: now, updated_at: now };
     setItems(KEY, [...all, item]);
     return item;
   },
@@ -30,7 +34,15 @@ export const materialRepository = {
     return updated;
   },
 
-  remove(id) {
+  softDelete(id) {
+    return this.update(id, { spam: true });
+  },
+
+  restore(id) {
+    return this.update(id, { spam: false });
+  },
+
+  hardDelete(id) {
     const all = getItems(KEY).filter((m) => m.id !== id);
     setItems(KEY, all);
   },

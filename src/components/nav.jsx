@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getUser, logout } from '@/lib/auth';
-import { canViewAdministration, canManageUsers, canViewAuditLog } from '@/lib/permissions';
+import { canViewAdministration, canManageUsers, canViewAuditLog, canViewSpam } from '@/lib/permissions';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard' },
@@ -22,6 +22,7 @@ export function Nav() {
   const showAdministration = canViewAdministration();
   const showUserManagement = canManageUsers();
   const showAuditLog = canViewAuditLog();
+  const showSpam = canViewSpam();
 
   function handleLogout() {
     logout();
@@ -74,6 +75,11 @@ export function Nav() {
             {showAuditLog && (
               <Link href="/administration/audit-log" className={subLinkClass('/administration/audit-log')}>
                 Audit Log
+              </Link>
+            )}
+            {showSpam && (
+              <Link href="/administration/spam" className={subLinkClass('/administration/spam')}>
+                Spam
               </Link>
             )}
           </div>

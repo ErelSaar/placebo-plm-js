@@ -5,17 +5,21 @@ const KEY = STORAGE_KEYS.products;
 
 export const productRepository = {
   getAll() {
-    return getItems(KEY);
+    return getItems(KEY).filter((p) => !p.spam);
+  },
+
+  getSpam() {
+    return getItems(KEY).filter((p) => p.spam === true);
   },
 
   getById(id) {
-    return getItems(KEY).find((p) => p.id === id) ?? null;
+    return getItems(KEY).find((p) => p.id === id && !p.spam) ?? null;
   },
 
   create(data) {
     const all = getItems(KEY);
     const now = new Date().toISOString();
-    const item = { ...data, created_at: now, updated_at: now };
+    const item = { ...data, spam: false, created_at: now, updated_at: now };
     setItems(KEY, [...all, item]);
     return item;
   },
@@ -30,7 +34,15 @@ export const productRepository = {
     return updated;
   },
 
-  remove(id) {
+  softDelete(id) {
+    return this.update(id, { spam: true });
+  },
+
+  restore(id) {
+    return this.update(id, { spam: false });
+  },
+
+  hardDelete(id) {
     const all = getItems(KEY).filter((p) => p.id !== id);
     setItems(KEY, all);
   },

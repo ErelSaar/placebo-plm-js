@@ -50,4 +50,9 @@ function canViewAuditLog() {
     return getPermission() >= 3; // admin (Manager) or owner
 }
 
-export { initializePermission, setPermission, getPermission, canViewAdministration, canManageUsers, canViewAuditLog };
+function canViewSpam() {
+    initializePermission();
+    return getPermission() >= 4; // owner only
+}
+
+export { initializePermission, setPermission, getPermission, canViewAdministration, canManageUsers, canViewAuditLog, canViewSpam };

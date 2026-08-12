@@ -5,17 +5,21 @@ const KEY = STORAGE_KEYS.suppliers;
 
 export const supplierRepository = {
   getAll() {
-    return getItems(KEY);
+    return getItems(KEY).filter((s) => !s.spam);
+  },
+
+  getSpam() {
+    return getItems(KEY).filter((s) => s.spam === true);
   },
 
   getById(id) {
-    return getItems(KEY).find((s) => s.id === id) ?? null;
+    return getItems(KEY).find((s) => s.id === id && !s.spam) ?? null;
   },
 
   create(data) {
     const all = getItems(KEY);
     const now = new Date().toISOString();
-    const item = { ...data, created_at: now, updated_at: now };
+    const item = { ...data, spam: false, created_at: now, updated_at: now };
     setItems(KEY, [...all, item]);
     return item;
   },
@@ -30,7 +34,15 @@ export const supplierRepository = {
     return updated;
   },
 
-  remove(id) {
+  softDelete(id) {
+    return this.update(id, { spam: true });
+  },
+
+  restore(id) {
+    return this.update(id, { spam: false });
+  },
+
+  hardDelete(id) {
     const all = getItems(KEY).filter((s) => s.id !== id);
     setItems(KEY, all);
   },

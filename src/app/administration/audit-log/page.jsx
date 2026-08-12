@@ -21,6 +21,8 @@ const ACTION_OPTIONS = [
   { value: 'order_created', label: 'Order Created' },
   { value: 'order_updated', label: 'Order Updated' },
   { value: 'user_role_changed', label: 'User Role Changed' },
+  { value: 'RESTORE', label: 'Record Restored' },
+  { value: 'HARD_DELETE', label: 'Permanently Deleted' },
 ];
 
 const ENTITY_TYPE_OPTIONS = [
@@ -42,6 +44,8 @@ const ACTION_BADGE_VARIANT = {
   order_created: 'success',
   order_updated: 'warning',
   user_role_changed: 'muted',
+  RESTORE: 'success',
+  HARD_DELETE: 'danger',
 };
 
 function formatActionLabel(action) {
@@ -225,8 +229,6 @@ export default function AuditLogPage() {
                 <Th>Role</Th>
                 <Th>Action</Th>
                 <Th>Entity Type</Th>
-                <Th>Record</Th>
-                <Th>Details</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -245,8 +247,6 @@ export default function AuditLogPage() {
                     </Badge>
                   </Td>
                   <Td>{entry.entity_type || '—'}</Td>
-                  <Td>{entry.entity || '—'}</Td>
-                  <Td className="text-[#737373] max-w-xs truncate">{entry.details || '—'}</Td>
                 </Tr>
               ))}
             </Tbody>

@@ -115,28 +115,12 @@ export default function ProductDetailPage({ params }) {
   }
 
   function handleDelete() {
-    const product = productRepository.getById(id);
-
-    // Remove BOM lines and order lines first
-    bomRepository.removeByProduct(id);
-
-    const allOrderLines = orderLineRepository.getAll();
-    const withoutThis = allOrderLines.filter((l) => l.product_id !== id);
-
-    // Save back without this product's lines
-    const allOrders = orderRepository.getAll();
-
-    for (const order of allOrders) {
-      const orderLinesToKeep = withoutThis.filter((l) => l.order_id === order.id);
-      orderLineRepository.saveMany(order.id, orderLinesToKeep);
-    }
-
-    productRepository.remove(id);
+    productRepository.softDelete(id);
 
     recordRepository.create({
       user_id: currentUser.id,
       action: 'DELETE',
-      entity_type: 'product',
+      entity_type: 'Product',
       entity_id: id,
       before: product,
       after: null,
@@ -601,7 +585,7 @@ export default function ProductDetailPage({ params }) {
         </>}
       >
         <p className="text-[13px]">
-          Are you sure you want to delete <strong>{product.name}</strong>? This will also remove all BOM lines and order lines for this product. This cannot be undone.
+          Are you sure you want to delete <strong>{product.name}</strong>? The product will be moved to Spam and can be restored by an Owner.
         </p>
       </Modal>
     </div>

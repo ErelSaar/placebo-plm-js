@@ -164,7 +164,17 @@ export default function SupplierDetailPage({ params }) {
   }
 
   function handleDelete() {
-    supplierRepository.remove(id);
+    supplierRepository.softDelete(id);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'DELETE',
+      entity_type: 'Supplier',
+      entity_id: id,
+      before: supplier,
+      after: null,
+    });
+
     router.push('/suppliers');
   }
 
@@ -300,7 +310,7 @@ export default function SupplierDetailPage({ params }) {
           <Button variant="danger" onClick={handleDelete}>Delete</Button>
         </>}
       >
-        <p className="text-[13px]">Are you sure you want to delete <strong>{supplier.name}</strong>? This action cannot be undone.</p>
+        <p className="text-[13px]">Are you sure you want to delete <strong>{supplier.name}</strong>? The supplier will be moved to Spam and can be restored by an Owner.</p>
       </Modal>
     </div>
   );

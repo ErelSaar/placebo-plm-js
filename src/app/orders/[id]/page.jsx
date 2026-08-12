@@ -339,7 +339,17 @@ export default function OrderDetailPage({ params }) {
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   function handleDelete() {
-    orderRepository.remove(id);
+    orderRepository.softDelete(id);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'DELETE',
+      entity_type: 'Order',
+      entity_id: id,
+      before: order,
+      after: null,
+    });
+
     router.push('/orders');
   }
 
@@ -857,7 +867,7 @@ export default function OrderDetailPage({ params }) {
         </>}
       >
         <p className="text-[13px]">
-          Are you sure you want to delete order <strong>{order.order_number}</strong>? All order lines will also be removed. This cannot be undone.
+          Are you sure you want to delete order <strong>{order.order_number}</strong>? The order will be moved to Spam and can be restored by an Owner.
         </p>
       </Modal>
     </div>
