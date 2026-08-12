@@ -104,6 +104,10 @@ export default function NewOrderPage() {
       errs.target_date = 'Target date is required';
     }
 
+    if (!form.season?.trim()) {
+      errs.season = 'Season is required';
+    }
+
     if (!form.production_country?.trim()) {
       errs.production_country = 'Production country is required';
     }
@@ -202,10 +206,9 @@ export default function NewOrderPage() {
                 <Input label="Order Number *" value={form.order_number} onChange={(e) => set('order_number', e.target.value)} error={errors.order_number} />
                 <Input label="Order Name *" value={form.order_name} onChange={(e) => set('order_name', e.target.value)} error={errors.order_name} />
                 <Select label="Season" value={form.season} onChange={(e) => set('season', e.target.value)} error={errors.season}>
-                  <option value="spring">Spring</option>
-                  <option value="summer">Summer</option>
-                  <option value="autumn">Autumn</option>
-                  <option value="winter">Winter</option>
+                  <option value="">Select season</option>
+                  <option value="fall / winter">Fall / Winter</option>
+                  <option value="spring / summer">Spring / Summer</option>
                 </Select>
                 <Input label="Currency" value={form.order_currency} onChange={(e) => set('order_currency', e.target.value)} error={errors.order_currency} />
                 <Input label="Order Date" type="date" value={form.order_date} onChange={(e) => set('order_date', e.target.value)} error={errors.order_date} />

@@ -436,11 +436,10 @@ export default function OrderDetailPage({ params }) {
             <div className="grid grid-cols-4 gap-4">
               <Input label="Order Number" value={metaForm.order_number || ''} error={errors.order_number} onChange={(e) => setMeta('order_number', e.target.value)} />
               <Input label="Order Name" value={metaForm.order_name || ''} error={errors.order_name} onChange={(e) => setMeta('order_name', e.target.value)} />
-              <Select label="Season" value={metaForm.season || ''} onChange={(e) => setMeta('season', e.target.value)}>
-                <option value="spring">Spring</option>
-                <option value="summer">Summer</option>
-                <option value="autumn">Autumn</option>
-                <option value="winter">Winter</option>
+              <Select label="Season" value={metaForm.season || ''} error={errors.season} onChange={(e) => setMeta('season', e.target.value)}>
+                <option value="">Select season</option>
+            <option value="fall / winter">Fall / Winter</option>
+            <option value="spring / summer">Spring / Summer</option>
               </Select>
               <Input label="Currency" value={metaForm.order_currency || ''} error={errors.order_currency} onChange={(e) => setMeta('order_currency', e.target.value)} />
               <Input label="Order Date" type="date" value={metaForm.order_date || ''} error={errors.order_date} onChange={(e) => setMeta('order_date', e.target.value)} />
