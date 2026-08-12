@@ -103,9 +103,9 @@ export default function MaterialsPage() {
       errs.lead_time = 'Lead time must be greater than 0';
     }
 
-    if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
-      errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
-    }
+    // if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
+    //   errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
+    // }
 
     return errs;
   }
