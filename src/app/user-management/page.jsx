@@ -56,10 +56,10 @@ export default function UserManagementPage() {
       return;
     }
 
-    if (newRole === 'owner' && users.some((user) => user.role === 'owner' && String(user.id) !== String(userId))) {
-      alert('There can only be one owner');
-      return;
-    }
+    // if (newRole === 'owner' && users.some((user) => user.role === 'owner' && String(user.id) !== String(userId))) {
+    //   alert('There can only be one owner');
+    //   return;
+    // }
 
     setPendingRole((prev) => ({ ...prev, [userId]: newRole }));
   }
@@ -77,12 +77,23 @@ export default function UserManagementPage() {
 
   function commitSave(userId, newRole) {
     setSaving(userId);
+
     updateUserRole(userId, newRole);
+
+    if (newRole === 'owner') {
+      const loggedUser = getUser();
+
+      if (loggedUser?.id && String(loggedUser.id) !== String(userId)) {
+        updateUserRole(loggedUser.id, 'admin');
+      }
+    }
+
     setPendingRole((prev) => {
       const next = { ...prev };
       delete next[userId];
       return next;
     });
+
     setSaving(null);
     load();
   }
