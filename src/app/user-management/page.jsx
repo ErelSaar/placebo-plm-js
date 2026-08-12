@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  PageHeader, Button, Table, Thead, Tbody, Th, Td, Tr, Select, Badge,
+  PageHeader, Button, Table, Thead, Tbody, Th, Td, Tr, Select, Badge, Modal,
 } from '@/components/ui';
 import { getRegisteredUsers, updateUserRole } from '@/lib/auth';
 import { initializePermission, getPermission } from '@/lib/permissions';
@@ -29,6 +29,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [pendingRole, setPendingRole] = useState({});
   const [saving, setSaving] = useState(null);
+  const [ownerConfirm, setOwnerConfirm] = useState(null); // { userId, currentRole }
 
   function load() {
     initializePermission();
@@ -52,6 +53,15 @@ export default function UserManagementPage() {
   function handleSave(userId) {
     const newRole = pendingRole[userId];
     if (!newRole) return;
+    const user = users.find((u) => u.id === userId);
+    if (newRole === 'owner' && user?.role !== 'owner') {
+      setOwnerConfirm({ userId });
+      return;
+    }
+    commitSave(userId, newRole);
+  }
+
+  function commitSave(userId, newRole) {
     setSaving(userId);
     updateUserRole(userId, newRole);
     setPendingRole((prev) => {
@@ -139,6 +149,35 @@ export default function UserManagementPage() {
           </Table>
         )}
       </div>
+
+      <Modal
+        open={!!ownerConfirm}
+        onClose={() => setOwnerConfirm(null)}
+        title="Assign Owner Role"
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setOwnerConfirm(null)}>Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const { userId } = ownerConfirm;
+                setOwnerConfirm(null);
+                commitSave(userId, 'owner');
+              }}
+            >
+              Confirm
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13px] text-[#0a0a0a] mb-3">
+          Are you sure you want to assign this user the Owner role?
+        </p>
+        <p className="text-[13px] text-[#737373]">
+          Owners have full access to the system, including User Management and role permissions.
+        </p>
+      </Modal>
     </div>
   );
 }
