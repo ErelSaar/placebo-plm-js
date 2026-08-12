@@ -8,9 +8,11 @@ import {
 } from '@/components/ui';
 import { materialRepository } from '@/lib/data/materials';
 import { supplierRepository } from '@/lib/data/suppliers';
-import { MATERIAL_CATEGORY_GROUPS, MATERIAL_CATEGORIES } from '@/lib/constants';
+import { MATERIAL_CATEGORY_GROUPS, MATERIAL_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
+import { recordRepository } from '@/lib/data/action-record';
+import { getItems } from '@/lib/data/storage';
 
 const BLANK = {
   name: '',
@@ -40,6 +42,7 @@ export default function MaterialsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [errors, setErrors] = useState({});
+    const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     setMaterials(materialRepository.getAll());
@@ -111,16 +114,37 @@ export default function MaterialsPage() {
   }
   function handleSave() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
     const id = uuidv4();
-    materialRepository.create({
+
+    const material = {
       id,
       ...form,
       supplier_id: form.supplier_id || null,
       unit_cost: form.unit_cost !== '' ? Number(form.unit_cost) : null,
       lead_time: form.lead_time !== '' ? Number(form.lead_time) : null,
-      minimum_order_quantity: form.minimum_order_quantity !== '' ? Number(form.minimum_order_quantity) : null,
+      minimum_order_quantity:
+        form.minimum_order_quantity !== ''
+          ? Number(form.minimum_order_quantity)
+          : null,
+    };
+
+    materialRepository.create(material);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'material',
+      entity_id: id,
+      before: null,
+      after: material,
     });
+
     setModal(false);
     load();
     router.push(`/materials/${id}`);

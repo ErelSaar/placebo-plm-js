@@ -12,9 +12,11 @@ import { productRepository } from '@/lib/data/products';
 import { bomRepository } from '@/lib/data/bom';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateRequiredMaterials } from '@/lib/calculations';
-import { MATERIAL_CATEGORIES } from '@/lib/constants';
+import { MATERIAL_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
+import { recordRepository } from '@/lib/data/action-record';
+import { getItems } from '@/lib/data/storage';
 
 export default function MaterialDetailPage({ params }) {
   const { id } = use(params);
@@ -26,6 +28,7 @@ export default function MaterialDetailPage({ params }) {
   const [usedInProducts, setUsedInProducts] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [errors, setErrors] = useState({});
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     const m = materialRepository.getById(id);
@@ -132,15 +135,39 @@ export default function MaterialDetailPage({ params }) {
 
   function handleSave() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
-    materialRepository.update(id, {
+    const before = materialRepository.getById(id);
+
+    const updatedMaterial = materialRepository.update(id, {
       ...form,
       supplier_id: form.supplier_id || null,
-      unit_cost: form.unit_cost !== '' && form.unit_cost != null ? Number(form.unit_cost) : null,
-      lead_time: form.lead_time !== '' && form.lead_time != null ? Number(form.lead_time) : null,
-      minimum_order_quantity: form.minimum_order_quantity !== '' && form.minimum_order_quantity != null ? Number(form.minimum_order_quantity) : null,
+      unit_cost:
+        form.unit_cost !== '' && form.unit_cost != null
+          ? Number(form.unit_cost)
+          : null,
+      lead_time:
+        form.lead_time !== '' && form.lead_time != null
+          ? Number(form.lead_time)
+          : null,
+      minimum_order_quantity:
+        form.minimum_order_quantity !== '' && form.minimum_order_quantity != null
+          ? Number(form.minimum_order_quantity)
+          : null,
     });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'material',
+      entity_id: id,
+      before,
+      after: updatedMaterial,
+    });
+
     setEditing(false);
     load();
   }
@@ -152,21 +179,49 @@ export default function MaterialDetailPage({ params }) {
 
   function handleDuplicate() {
     const newId = uuidv4();
-    materialRepository.create({
+
+    const newMaterial = {
       ...material,
       id: newId,
       name: `${material.name} (Copy)`,
-      internal_code: material.internal_code ? `${material.internal_code}-COPY` : '',
+      internal_code: material.internal_code
+        ? `${material.internal_code}-COPY`
+        : '',
+    };
+
+    materialRepository.create(newMaterial);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE DUPLICATE',
+      entity_type: 'material',
+      entity_id: newId,
+      before: null,
+      after: newMaterial,
     });
+
     router.push(`/materials/${newId}`);
   }
 
   function handleDelete() {
+    const material = materialRepository.getById(id);
+
     // Remove all BOM lines referencing this material
     const allBOM = bomRepository.getAll();
     const toRemove = allBOM.filter((b) => b.material_id === id);
     toRemove.forEach((b) => bomRepository.remove(b.id));
+
     materialRepository.remove(id);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'DELETE',
+      entity_type: 'material',
+      entity_id: id,
+      before: material,
+      after: null,
+    });
+
     router.push('/materials');
   }
 

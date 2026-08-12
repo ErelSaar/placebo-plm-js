@@ -9,6 +9,9 @@ import {
 import { supplierRepository } from '@/lib/data/suppliers';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
+import { getItems } from '@/lib/data/storage';
+import { STORAGE_KEYS } from '@/lib/constants';
+import { recordRepository } from '@/lib/data/action-record';
 
 const BLANK = {
   name: '',
@@ -33,6 +36,7 @@ export default function SuppliersPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [errors, setErrors] = useState({});
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     setSuppliers(supplierRepository.getAll());
@@ -102,19 +106,39 @@ export default function SuppliersPage() {
   }
 
   function handleSave() {
-    const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    const id = uuidv4();
-    supplierRepository.create({
-      id,
-      ...form,
-      lead_time: form.lead_time ? Number(form.lead_time) : null,
-      minimum_order_quantity: form.minimum_order_quantity ? Number(form.minimum_order_quantity) : null,
-    });
-    setModal(false);
-    load();
-    router.push(`/suppliers/${id}`);
+  const errs = validate();
+
+  if (Object.keys(errs).length > 0) {
+    setErrors(errs);
+    return;
   }
+
+  const id = uuidv4();
+
+  const supplier = {
+    id,
+    ...form,
+    lead_time: form.lead_time ? Number(form.lead_time) : null,
+    minimum_order_quantity: form.minimum_order_quantity
+      ? Number(form.minimum_order_quantity)
+      : null,
+  };
+
+  supplierRepository.create(supplier);
+
+  recordRepository.create({
+    user_id: currentUser.id,
+    action: 'CREATE',
+    entity_type: 'supplier',
+    entity_id: id,
+    before: null,
+    after: supplier,
+  });
+
+  setModal(false);
+  load();
+  router.push(`/suppliers/${id}`);
+}
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));

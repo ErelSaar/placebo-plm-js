@@ -7,9 +7,11 @@ import {
   EmptyState, Input, Select, Modal, Textarea,
 } from '@/components/ui';
 import { productRepository } from '@/lib/data/products';
-import { PRODUCT_CATEGORIES } from '@/lib/constants';
+import { PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
+import { recordRepository } from '@/lib/data/action-record';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
+import { getItems } from '@/lib/data/storage';
 
 const BLANK = {
   name: '',
@@ -94,15 +96,32 @@ export default function ProductsPage() {
 
   function handleSave() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    const currentUser = getItems(STORAGE_KEYS.logged_user);
 
     const id = uuidv4();
-    productRepository.create({
+
+    const product = {
       id,
       ...form,
       selling_price: form.selling_price !== '' ? Number(form.selling_price) : null,
       pricing_multiplier: Number(form.pricing_multiplier) || 3.5,
+    };
+
+    productRepository.create(product);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'product',
+      entity_id: id,
+      before: null,
+      after: product,
     });
+
     setModal(false);
     load();
     router.push(`/products/${id}`);

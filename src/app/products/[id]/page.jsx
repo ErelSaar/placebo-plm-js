@@ -13,9 +13,11 @@ import { supplierRepository } from '@/lib/data/suppliers';
 import { bomRepository } from '@/lib/data/bom';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateBOMCost, calculateProductCostSummary } from '@/lib/calculations';
-import { MATERIAL_CATEGORY_GROUPS, PRODUCT_CATEGORIES } from '@/lib/constants';
+import { MATERIAL_CATEGORY_GROUPS, PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
+import { recordRepository } from '@/lib/data/action-record';
+import { getItems } from '@/lib/data/storage';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -42,6 +44,7 @@ export default function ProductDetailPage({ params }) {
   const [bomForm, setBomForm] = useState({ material_id: '', quantity_per_unit: '', notes: '' });
   const [multiplier, setMultiplier] = useState(3.5);
   const [errors, setErrors] = useState({});
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     const p = productRepository.getById(id);
@@ -78,12 +81,30 @@ export default function ProductDetailPage({ params }) {
 
   function handleSave() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
-    productRepository.update(id, {
+    const before = productRepository.getById(id);
+
+    const updatedProduct = productRepository.update(id, {
       ...form,
-      selling_price: form.selling_price !== '' && form.selling_price != null ? Number(form.selling_price) : null,
+      selling_price:
+        form.selling_price !== '' && form.selling_price != null
+          ? Number(form.selling_price)
+          : null,
     });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'product',
+      entity_id: id,
+      before,
+      after: updatedProduct,
+    });
+
     setEditing(false);
     load();
   }
@@ -94,17 +115,33 @@ export default function ProductDetailPage({ params }) {
   }
 
   function handleDelete() {
+    const product = productRepository.getById(id);
+
     // Remove BOM lines and order lines first
     bomRepository.removeByProduct(id);
+
     const allOrderLines = orderLineRepository.getAll();
     const withoutThis = allOrderLines.filter((l) => l.product_id !== id);
+
     // Save back without this product's lines
     const allOrders = orderRepository.getAll();
+
     for (const order of allOrders) {
       const orderLinesToKeep = withoutThis.filter((l) => l.order_id === order.id);
       orderLineRepository.saveMany(order.id, orderLinesToKeep);
     }
+
     productRepository.remove(id);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'DELETE',
+      entity_type: 'product',
+      entity_id: id,
+      before: product,
+      after: null,
+    });
+
     router.push('/products');
   }
 
@@ -135,7 +172,7 @@ export default function ProductDetailPage({ params }) {
     if (!form.name?.trim()) {
       errs.name = 'Name is required';
     }
-    
+
     if (!form.season?.trim()) {
       errs.season = 'Season is required';
     }
@@ -153,14 +190,24 @@ export default function ProductDetailPage({ params }) {
 
   function handleSaveBOM() {
     if (!bomForm.material_id || bomForm.quantity_per_unit === '') return;
+
     if (editBomLine) {
-      bomRepository.update(editBomLine.id, {
+      const updatedBom = bomRepository.update(editBomLine.id, {
         material_id: bomForm.material_id,
         quantity_per_unit: Number(bomForm.quantity_per_unit),
         notes: bomForm.notes,
       });
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'UPDATE',
+        entity_type: 'bom',
+        entity_id: editBomLine.id,
+        before: editBomLine,
+        after: updatedBom,
+      });
     } else {
-      bomRepository.create({
+      const bom = bomRepository.create({
         id: uuidv4(),
         product_id: id,
         material_id: bomForm.material_id,
@@ -168,7 +215,17 @@ export default function ProductDetailPage({ params }) {
         notes: bomForm.notes,
         sort_order: bomLines.length + 1,
       });
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'CREATE',
+        entity_type: 'bom',
+        entity_id: bom.id,
+        before: null,
+        after: bom,
+      });
     }
+
     setBomModal(false);
     load();
   }
@@ -276,7 +333,7 @@ export default function ProductDetailPage({ params }) {
                   <div className="grid grid-cols-2 gap-4">
                     <Input label="Product Name" value={form.name || ''} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
                     <Input label="Style Code" value={form.style_code || ''} error={errors.style_code} onChange={(e) => set('style_code', e.target.value)} />
-                    <Input label="SKU" value={form.sku || ''}  error={errors.sku} onChange={(e) => set('sku', e.target.value)} />
+                    <Input label="SKU" value={form.sku || ''} error={errors.sku} onChange={(e) => set('sku', e.target.value)} />
                     <Select label="Season" value={form.season} error={errors.season} onChange={(e) => set('season', e.target.value)}>
                       <option value="">Select season</option>
                       <option value="fall / winter">Fall / Winter</option>

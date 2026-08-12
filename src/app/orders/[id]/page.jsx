@@ -22,6 +22,9 @@ import { exportOrderToExcel } from '@/lib/exports/excel';
 import { exportOrderToPDF } from '@/lib/exports/pdf';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
+import { getItems } from '@/lib/data/storage';
+import { STORAGE_KEYS } from '@/lib/constants';
+import { recordRepository } from '@/lib/data/action-record';
 
 const TABS = [
   { id: 'products', label: 'Products' },
@@ -51,6 +54,7 @@ export default function OrderDetailPage({ params }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [allProductsList, setAllProductsList] = useState([]);
   const [errors, setErrors] = useState({});
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     const o = orderRepository.getById(id);
@@ -150,8 +154,24 @@ export default function OrderDetailPage({ params }) {
 
   function handleSaveMeta() {
     const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    orderRepository.update(id, metaForm);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    const before = orderRepository.getById(id);
+
+    const updatedOrder = orderRepository.update(id, metaForm);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'order',
+      entity_id: id,
+      before,
+      after: updatedOrder,
+    });
+
     setEditingMeta(false);
     load();
   }
@@ -170,14 +190,32 @@ export default function OrderDetailPage({ params }) {
   // ─── Costs ────────────────────────────────────────────────────────────────
 
   function handleSaveCosts() {
-    orderRepository.update(id, {
-      shipping_cost: costsForm.shipping_cost !== '' ? Number(costsForm.shipping_cost) : null,
+    const before = orderRepository.getById(id);
+
+    const updatedOrder = orderRepository.update(id, {
+      shipping_cost:
+        costsForm.shipping_cost !== ''
+          ? Number(costsForm.shipping_cost)
+          : null,
       shipping_cost_type: costsForm.shipping_cost_type,
-      customs_cost: costsForm.customs_cost !== '' ? Number(costsForm.customs_cost) : null,
+      customs_cost:
+        costsForm.customs_cost !== ''
+          ? Number(costsForm.customs_cost)
+          : null,
       customs_type: costsForm.customs_type,
       cost_allocation_method: costsForm.cost_allocation_method,
       additional_costs: costsForm.additional_costs,
     });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'order',
+      entity_id: id,
+      before,
+      after: updatedOrder,
+    });
+
     setCostsModal(false);
     load();
   }
@@ -225,23 +263,76 @@ export default function OrderDetailPage({ params }) {
 
   function handleSaveLine() {
     if (!lineForm.product_id || !lineForm.quantity) return;
+
     const key = `${lineForm.product_id}|${lineForm.color}|${lineForm.size}`;
     const duplicate = orderLines.some(
-      (l) => `${l.product_id}|${l.color}|${l.size}` === key && l.id !== lineForm.id
+      (l) =>
+        `${l.product_id}|${l.color}|${l.size}` === key &&
+        l.id !== lineForm.id
     );
-    if (duplicate) { alert('This product + color + size combination already exists in this order.'); return; }
+
+    if (duplicate) {
+      alert('This product + color + size combination already exists in this order.');
+      return;
+    }
+
+    const before = lineForm.isNew
+      ? null
+      : orderLines.find((l) => l.id === lineForm.id);
 
     const updated = lineForm.isNew
-      ? [...orderLines, { id: lineForm.id, order_id: id, product_id: lineForm.product_id, color: lineForm.color, size: lineForm.size, quantity: Number(lineForm.quantity) }]
-      : orderLines.map((l) => l.id === lineForm.id ? { ...l, ...lineForm, quantity: Number(lineForm.quantity) } : l);
+      ? [
+        ...orderLines,
+        {
+          id: lineForm.id,
+          order_id: id,
+          product_id: lineForm.product_id,
+          color: lineForm.color,
+          size: lineForm.size,
+          quantity: Number(lineForm.quantity),
+        },
+      ]
+      : orderLines.map((l) =>
+        l.id === lineForm.id
+          ? { ...l, ...lineForm, quantity: Number(lineForm.quantity) }
+          : l
+      );
+
     orderLineRepository.saveMany(id, updated);
+
+    const after = lineForm.isNew
+      ? updated.find((l) => l.id === lineForm.id)
+      : updated.find((l) => l.id === lineForm.id);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: lineForm.isNew ? 'CREATE' : 'UPDATE',
+      entity_type: 'order_line',
+      entity_id: lineForm.id,
+      before,
+      after,
+    });
+
     setLineModal(false);
     load();
   }
 
   function handleRemoveLine(lineId) {
+    const before = orderLines.find((l) => l.id === lineId);
+
     const updated = orderLines.filter((l) => l.id !== lineId);
+
     orderLineRepository.saveMany(id, updated);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'DELETE',
+      entity_type: 'order_line',
+      entity_id: lineId,
+      before,
+      after: null,
+    });
+
     load();
   }
 

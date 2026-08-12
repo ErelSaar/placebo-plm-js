@@ -12,6 +12,9 @@ import { productRepository } from '@/lib/data/products';
 import { bomRepository } from '@/lib/data/bom';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateRequiredMaterials } from '@/lib/calculations';
+import { getItems } from '@/lib/data/storage';
+import { STORAGE_KEYS } from '@/lib/constants';
+import { recordRepository } from '@/lib/data/action-record';
 
 export default function SupplierDetailPage({ params }) {
   const { id } = use(params);
@@ -23,6 +26,8 @@ export default function SupplierDetailPage({ params }) {
   const [products, setProducts] = useState([]);
   const [activeOrderValue, setActiveOrderValue] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [errors, setErrors] = useState({});
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     const s = supplierRepository.getById(id);
@@ -71,12 +76,84 @@ export default function SupplierDetailPage({ params }) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function validate() {
+    const errs = {};
+
+    if (!form.name?.trim()) {
+      errs.name = 'Supplier name is required';
+    }
+
+    if (!form.country?.trim()) {
+      errs.country = 'Country is required';
+    }
+
+    if (!form.currency?.trim()) {
+      errs.currency = 'Currency is required';
+    }
+
+    if (!form.contact_person?.trim()) {
+      errs.contact_person = 'Contact person is required';
+    }
+
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      errs.email = 'Invalid email address';
+    }
+
+    if (form.phone && !/^[+0-9\s\-()]+$/.test(form.phone)) {
+      errs.phone = 'Invalid phone number';
+    }
+
+    if (form.website && !/^https?:\/\/.+/i.test(form.website)) {
+      errs.website = 'Website must start with http:// or https://';
+    }
+
+    if (
+      form.lead_time !== '' &&
+      form.lead_time != null &&
+      (Number(form.lead_time) < 0 || Number.isNaN(Number(form.lead_time)))
+    ) {
+      errs.lead_time = 'Lead time must be 0 or greater';
+    }
+
+    if (
+      form.minimum_order_quantity !== '' &&
+      form.minimum_order_quantity != null &&
+      (Number(form.minimum_order_quantity) < 0 ||
+        Number.isNaN(Number(form.minimum_order_quantity)))
+    ) {
+      errs.minimum_order_quantity = 'Minimum order quantity must be 0 or greater';
+    }
+
+    return errs;
+  }
+
   function handleSave() {
-    supplierRepository.update(id, {
+    const errs = validate();
+
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    const before = supplierRepository.getById(id);
+
+    const updatedSupplier = supplierRepository.update(id, {
       ...form,
       lead_time: form.lead_time ? Number(form.lead_time) : null,
-      minimum_order_quantity: form.minimum_order_quantity ? Number(form.minimum_order_quantity) : null,
+      minimum_order_quantity: form.minimum_order_quantity
+        ? Number(form.minimum_order_quantity)
+        : null,
     });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'supplier',
+      entity_id: id,
+      before,
+      after: updatedSupplier,
+    });
+
     setEditing(false);
     load();
   }
@@ -122,16 +199,16 @@ export default function SupplierDetailPage({ params }) {
             <Section title="Supplier Information">
               {editing ? (
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Supplier Name" value={form.name || ''} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
-                  <Input label="Country" value={form.country || ''} onChange={(e) => set('country', e.target.value)} />
-                  <Input label="Currency" value={form.currency || ''} onChange={(e) => set('currency', e.target.value)} />
-                  <Input label="Contact Person" value={form.contact_person || ''} onChange={(e) => set('contact_person', e.target.value)} />
-                  <Input label="Email" type="email" value={form.email || ''} onChange={(e) => set('email', e.target.value)} />
-                  <Input label="Phone" value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} />
-                  <Input label="Website" value={form.website || ''} onChange={(e) => set('website', e.target.value)} />
-                  <Input label="Lead Time (days)" type="number" value={form.lead_time ?? ''} onChange={(e) => set('lead_time', e.target.value)} />
+                  <Input label="Supplier Name" value={form.name || ''} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
+                  <Input label="Country" value={form.country || ''} error={errors.country} onChange={(e) => set('country', e.target.value)} />
+                  <Input label="Currency" value={form.currency || ''} error={errors.currency} onChange={(e) => set('currency', e.target.value)} />
+                  <Input label="Contact Person" value={form.contact_person || ''} error={errors.contact_person} onChange={(e) => set('contact_person', e.target.value)} />
+                  <Input label="Email" type="email" value={form.email || ''} error={errors.email} onChange={(e) => set('email', e.target.value)} />
+                  <Input label="Phone" value={form.phone || ''} error={errors.phone} onChange={(e) => set('phone', e.target.value)} />
+                  <Input label="Website" value={form.website || ''} error={errors.website} onChange={(e) => set('website', e.target.value)} />
+                  <Input label="Lead Time (days)" type="number" value={form.lead_time ?? ''} error={errors.lead_time} min={0} onChange={(e) => set('lead_time', e.target.value)} />
                   <Input label="Payment Terms" value={form.payment_terms || ''} onChange={(e) => set('payment_terms', e.target.value)} />
-                  <Input label="Minimum Order Qty" type="number" value={form.minimum_order_quantity ?? ''} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
+                  <Input label="Minimum Order Qty" type="number" value={form.minimum_order_quantity ?? ''} error={errors.name} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
                   <Textarea label="Notes" value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
                 </div>
               ) : (

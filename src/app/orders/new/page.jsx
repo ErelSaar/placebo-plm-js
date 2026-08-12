@@ -9,6 +9,9 @@ import {
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { productRepository } from '@/lib/data/products';
 import { v4 as uuidv4 } from 'uuid';
+import { getItems } from '@/lib/data/storage';
+import { STORAGE_KEYS } from '@/lib/constants';
+import { recordRepository } from '@/lib/data/action-record';
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -29,6 +32,7 @@ export default function NewOrderPage() {
     order_currency: 'EUR',
     notes: '',
   });
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   useEffect(() => {
     setProducts(productRepository.getAll().filter((p) => p.status === 'active'));
@@ -129,10 +133,14 @@ export default function NewOrderPage() {
 
   function handleSave(status) {
     const errs = validate(status);
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
     const orderId = uuidv4();
-    orderRepository.create({
+
+    const order = {
       id: orderId,
       ...form,
       status,
@@ -142,7 +150,9 @@ export default function NewOrderPage() {
       customs_type: 'fixed',
       cost_allocation_method: 'by_value',
       additional_costs: [],
-    });
+    };
+
+    orderRepository.create(order);
 
     const orderLines = lines.map((l) => ({
       id: l.id,
@@ -152,7 +162,21 @@ export default function NewOrderPage() {
       size: l.size,
       quantity: Number(l.quantity),
     }));
+
     orderLineRepository.saveMany(orderId, orderLines);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'order',
+      entity_id: orderId,
+      before: null,
+      after: {
+        ...order,
+        lines: orderLines,
+      },
+    });
+
     router.push(`/orders/${orderId}`);
   }
 

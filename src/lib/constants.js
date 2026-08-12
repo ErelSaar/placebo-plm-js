@@ -57,4 +57,5 @@ export const STORAGE_KEYS = {
   initialized: 'plm_initialized_v3',
   logged_user: 'plm_logged_user',
   registered_users: 'plm_registered_users',
+  audit_log: 'plm_audit_log'
 };
