@@ -135,6 +135,10 @@ export default function ProductDetailPage({ params }) {
     if (!form.name?.trim()) {
       errs.name = 'Name is required';
     }
+    
+    if (!form.season?.trim()) {
+      errs.season = 'Season is required';
+    }
 
     if (
       form.selling_price === '' ||
@@ -273,11 +277,10 @@ export default function ProductDetailPage({ params }) {
                     <Input label="Product Name" value={form.name || ''} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
                     <Input label="Style Code" value={form.style_code || ''} error={errors.style_code} onChange={(e) => set('style_code', e.target.value)} />
                     <Input label="SKU" value={form.sku || ''}  error={errors.sku} onChange={(e) => set('sku', e.target.value)} />
-                    <Select label="Season" value={form.season} onChange={(e) => set('season', e.target.value)}>
-                      <option value="spring">Spring</option>
-                      <option value="summer">Summer</option>
-                      <option value="autumn">Autumn</option>
-                      <option value="winter">Winter</option>
+                    <Select label="Season" value={form.season} error={errors.season} onChange={(e) => set('season', e.target.value)}>
+                      <option value="">Select season</option>
+                      <option value="fall / winter">Fall / Winter</option>
+                      <option value="spring / summer">Spring / Summer</option>
                     </Select>
                     <Select label="Category" value={form.category || ''} onChange={(e) => set('category', e.target.value)}>
                       {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}

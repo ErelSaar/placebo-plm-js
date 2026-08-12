@@ -68,19 +68,27 @@ export default function ProductsPage() {
     const errs = {};
     const all = productRepository.getAll();
     if (!form.name.trim()) errs.name = 'Name is required';
+
     if (!form.selling_price || Number(form.selling_price) <= 0) {
       errs.selling_price = 'Selling price must be greater than 0';
     }
+
+    if (!form.season?.trim()) {
+      errs.season = 'Season is required';
+    }
+
     if (!form.style_code.trim()) {
       errs.style_code = 'Style code is required';
     } else if (all.some((p) => p.style_code === form.style_code)) {
       errs.style_code = 'Style code must be unique';
     }
+
     if (!form.sku.trim()) {
       errs.sku = 'SKU is required';
     } else if (all.some((p) => p.sku === form.sku)) {
       errs.sku = 'SKU must be unique';
     }
+
     return errs;
   }
 
@@ -192,16 +200,15 @@ export default function ProductsPage() {
           <Input label="Product Name *" value={form.name} onChange={(e) => set('name', e.target.value)} error={errors.name} className="col-span-2" />
           <Input label="Style Code *" value={form.style_code} onChange={(e) => set('style_code', e.target.value)} error={errors.style_code} />
           <Input label="SKU *" value={form.sku} onChange={(e) => set('sku', e.target.value)} error={errors.sku} />
-          <Select label="Season" value={form.season} onChange={(e) => set('season', e.target.value)}>
-            <option value="spring">Spring</option>
-            <option value="summer">Summer</option>
-            <option value="autumn">Autumn</option>
-            <option value="winter">Winter</option>
+          <Select label="Season" value={form.season} error={errors.season} onChange={(e) => set('season', e.target.value)}>
+            <option value="">Select season</option>
+            <option value="fall / winter">Fall / Winter</option>
+            <option value="spring / summer">Spring / Summer</option>
           </Select>
           <Select label="Category" value={form.category} onChange={(e) => set('category', e.target.value)}>
             {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
-          <Input label="Selling Price" type="number" value={form.selling_price} min={0} error={errors.selling_price}  onChange={(e) => set('selling_price', e.target.value)} />
+          <Input label="Selling Price" type="number" value={form.selling_price} min={0} error={errors.selling_price} onChange={(e) => set('selling_price', e.target.value)} />
           <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
