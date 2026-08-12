@@ -7,6 +7,9 @@ import {
 } from '@/components/ui';
 import { getRegisteredUsers, getUser, updateUserRole } from '@/lib/auth';
 import { initializePermission, getPermission } from '@/lib/permissions';
+import { recordRepository } from '@/lib/data/action-record';
+import { getItems } from '@/lib/data/storage';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 const ROLE_OPTIONS = [
   { value: 'viewer', label: 'Viewer' },
@@ -30,6 +33,7 @@ export default function UserManagementPage() {
   const [pendingRole, setPendingRole] = useState({});
   const [saving, setSaving] = useState(null);
   const [ownerConfirm, setOwnerConfirm] = useState(null); // { userId, currentRole }
+    const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
     initializePermission();
@@ -67,12 +71,29 @@ export default function UserManagementPage() {
   function handleSave(userId) {
     const newRole = pendingRole[userId];
     if (!newRole) return;
+
     const user = users.find((u) => u.id === userId);
+
     if (newRole === 'owner' && user?.role !== 'owner') {
       setOwnerConfirm({ userId });
       return;
     }
+
+    const before = { ...user };
+
     commitSave(userId, newRole);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'user',
+      entity_id: userId,
+      before,
+      after: {
+        ...user,
+        role: newRole,
+      },
+    });
   }
 
   function commitSave(userId, newRole) {
