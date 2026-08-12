@@ -79,9 +79,9 @@ export default function MaterialsPage() {
       errs.internal_code = 'Internal code is required';
     }
 
-    if (!form.color?.trim()) {
-      errs.color = 'color is required';
-    }
+    // if (!form.color?.trim()) {
+    //   errs.color = 'color is required';
+    // }
 
     if (!form.supplier_item_code?.trim()) {
       errs.supplier_item_code = 'Supplier item code is required';

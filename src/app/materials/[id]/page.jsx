@@ -95,9 +95,9 @@ export default function MaterialDetailPage({ params }) {
       errs.internal_code = 'Internal code is required';
     }
 
-    if (!form.color?.trim()) {
-      errs.color = 'color is required';
-    }
+    // if (!form.color?.trim()) {
+    //   errs.color = 'color is required';
+    // }
 
     if (!form.category) {
       errs.category = 'Category is required';
