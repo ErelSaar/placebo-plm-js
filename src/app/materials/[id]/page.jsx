@@ -85,46 +85,50 @@ export default function MaterialDetailPage({ params }) {
   }
 
   function validate() {
-  const errs = {};
+    const errs = {};
 
-  if (!form.name?.trim()) {
-    errs.name = 'Material name is required';
+    if (!form.name?.trim()) {
+      errs.name = 'Material name is required';
+    }
+
+    if (!form.internal_code?.trim()) {
+      errs.internal_code = 'Internal code is required';
+    }
+
+    if (!form.color?.trim()) {
+      errs.color = 'color is required';
+    }
+
+    if (!form.category) {
+      errs.category = 'Category is required';
+    }
+
+    if (!form.supplier_item_code?.trim()) {
+      errs.supplier_item_code = 'Supplier item code is required';
+    }
+
+    if (form.unit_cost === '' || form.unit_cost == null || Number(form.unit_cost) <= 0) {
+      errs.unit_cost = 'Unit cost must be greater than 0';
+    }
+
+    if (!form.currency?.trim()) {
+      errs.currency = 'Currency is required';
+    }
+
+    if (!form.unit_of_measurement?.trim()) {
+      errs.unit_of_measurement = 'Unit of measurement is required';
+    }
+
+    if (form.lead_time === '' || form.lead_time == null || Number(form.lead_time) <= 0) {
+      errs.lead_time = 'Lead time must be greater than 0';
+    }
+
+    if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
+      errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
+    }
+
+    return errs;
   }
-
-  if (!form.internal_code?.trim()) {
-    errs.internal_code = 'Internal code is required';
-  }
-
-  if (!form.category) {
-    errs.category = 'Category is required';
-  }
-
-  if (!form.supplier_item_code?.trim()) {
-    errs.supplier_item_code = 'Supplier item code is required';
-  }
-
-  if (form.unit_cost === '' || form.unit_cost == null || Number(form.unit_cost) <= 0) {
-    errs.unit_cost = 'Unit cost must be greater than 0';
-  }
-
-  if (!form.currency?.trim()) {
-    errs.currency = 'Currency is required';
-  }
-
-  if (!form.unit_of_measurement?.trim()) {
-    errs.unit_of_measurement = 'Unit of measurement is required';
-  }
-
-  if (form.lead_time === '' || form.lead_time == null || Number(form.lead_time) <= 0) {
-    errs.lead_time = 'Lead time must be greater than 0';
-  }
-
-  if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
-    errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
-  }
-
-  return errs;
-}
 
   function handleSave() {
     const errs = validate();
@@ -217,7 +221,7 @@ export default function MaterialDetailPage({ params }) {
                   <Select label="Category" value={form.category || ''} error={errors.category} onChange={(e) => set('category', e.target.value)}>
                     {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </Select>
-                  <Input label="Color" value={form.color || ''} onChange={(e) => set('color', e.target.value)} />
+                  <Input label="Color" value={form.color || ''} error={errors.color} onChange={(e) => set('color', e.target.value)} />
                   <Select label="Supplier" value={form.supplier_id || ''} onChange={(e) => set('supplier_id', e.target.value)}>
                     <option value="">No Supplier</option>
                     {suppliers.filter((s) => s.status === 'active').map((s) => (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   PageHeader, Button, Table, Thead, Tbody, Th, Td, Tr, Select, Badge,
 } from '@/components/ui';
-import { getRegisteredUsers, updateUserRole } from '@/lib/auth';
+import { getRegisteredUsers, getUser, updateUserRole } from '@/lib/auth';
 import { initializePermission, getPermission } from '@/lib/permissions';
 
 const ROLE_OPTIONS = [
@@ -46,6 +46,20 @@ export default function UserManagementPage() {
   if (permission < 4) return null;
 
   function handleRoleChange(userId, newRole) {
+    const users = getRegisteredUsers();
+    const loggedUser = getUser();
+    const currentUser = users.find((user) => (user.id) === (userId));
+
+    if (currentUser?.role === 'owner' && (userId) === (loggedUser?.id)) {
+      alert('The owner cannot change their own role');
+      return;
+    }
+
+    if (newRole === 'owner' && users.some((user) => user.role === 'owner' && String(user.id) !== String(userId))) {
+      alert('There can only be one owner');
+      return;
+    }
+
     setPendingRole((prev) => ({ ...prev, [userId]: newRole }));
   }
 

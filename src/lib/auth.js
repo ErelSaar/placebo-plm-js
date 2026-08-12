@@ -66,7 +66,7 @@ export function login(username, password) {
   );
 
   if (found) {
-    const user = { username: found.username, name: found.name, role: found.role };
+    const user = {id: found.id, username: found.username, name: found.name, role: found.role };
     localStorage.setItem(STORAGE_KEYS.logged_user, JSON.stringify(user));
     return { ok: true, user };
   }

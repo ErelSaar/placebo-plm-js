@@ -79,6 +79,10 @@ export default function MaterialsPage() {
       errs.internal_code = 'Internal code is required';
     }
 
+    if (!form.color?.trim()) {
+      errs.color = 'color is required';
+    }
+
     if (!form.supplier_item_code?.trim()) {
       errs.supplier_item_code = 'Supplier item code is required';
     }
@@ -260,7 +264,7 @@ export default function MaterialsPage() {
           <Select label="Category *" value={form.category} onChange={(e) => set('category', e.target.value)} error={errors.category}>
             {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
-          <Input label="Color" value={form.color} onChange={(e) => set('color', e.target.value)} />
+          <Input label="Color" value={form.color} error={errors.color} onChange={(e) => set('color', e.target.value)} />
           <Select label="Supplier" value={form.supplier_id} onChange={(e) => set('supplier_id', e.target.value)}>
             <option value="">No Supplier</option>
             {suppliers.filter((s) => s.status === 'active').map((s) => (
