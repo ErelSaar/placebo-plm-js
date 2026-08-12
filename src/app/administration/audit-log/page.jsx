@@ -7,7 +7,8 @@ import {
   EmptyState, Input, Select, Badge,
 } from '@/components/ui';
 import { initializePermission, getPermission } from '@/lib/permissions';
-import { getRegisteredUsers } from '@/lib/auth';
+import { getRegisteredUsers, getUser } from '@/lib/auth';
+import { recordRepository } from '@/lib/data/action-record';
 
 const ACTION_OPTIONS = [
   { value: '', label: 'All Actions' },
@@ -81,28 +82,51 @@ export default function AuditLogPage() {
     // Load registered users for the user filter dropdown
     setUsers(getRegisteredUsers());
     // TODO: Replace with real API call — e.g. setLogs(await fetchAuditLogs())
-    setLogs([]);
+    const logs = recordRepository.getAll();
+    setLogs(logs);
   }, []);
 
   const permission = getPermission();
   if (permission < 3) return null;
 
-  const filtered = logs.filter((entry) => {
+  const logsWithUsers = logs.map((entry) => {
+    const user = users.find((u) => u.id === entry.user_id);
+
+    return {
+      ...entry,
+      name: user?.name || '',
+      role: user?.role || '',
+    };
+  });
+
+  const filtered = logsWithUsers.filter((entry) => {
+
     const matchSearch =
       !search ||
-      (entry.user || '').toLowerCase().includes(search.toLowerCase()) ||
-      (entry.entity || '').toLowerCase().includes(search.toLowerCase()) ||
-      (entry.details || '').toLowerCase().includes(search.toLowerCase());
+      (entry.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (entry.entity_type || '').toLowerCase().includes(search.toLowerCase()) ||
+      (entry.action || '').toLowerCase().includes(search.toLowerCase());
 
-    const matchUser = !userFilter || entry.username === userFilter;
+    const matchUser = !userFilter || entry.name === userFilter;
     const matchAction = !actionFilter || entry.action === actionFilter;
-    const matchEntityType = !entityTypeFilter || entry.entityType === entityTypeFilter;
+    const matchEntityType =
+      !entityTypeFilter || entry.entity_type === entityTypeFilter;
 
-    const entryDate = entry.timestamp ? new Date(entry.timestamp) : null;
-    const matchDateFrom = !dateFrom || (entryDate && entryDate >= new Date(dateFrom));
-    const matchDateTo = !dateTo || (entryDate && entryDate <= new Date(dateTo + 'T23:59:59'));
+    const entryDate = entry.created_at ? new Date(entry.created_at) : null;
+    const matchDateFrom =
+      !dateFrom || (entryDate && entryDate >= new Date(dateFrom));
+    const matchDateTo =
+      !dateTo ||
+      (entryDate && entryDate <= new Date(dateTo + 'T23:59:59'));
 
-    return matchSearch && matchUser && matchAction && matchEntityType && matchDateFrom && matchDateTo;
+    return (
+      matchSearch &&
+      matchUser &&
+      matchAction &&
+      matchEntityType &&
+      matchDateFrom &&
+      matchDateTo
+    );
   });
 
   const hasFilters = search || userFilter || actionFilter || entityTypeFilter || dateFrom || dateTo;
@@ -209,18 +233,18 @@ export default function AuditLogPage() {
               {filtered.map((entry, i) => (
                 <Tr key={entry.id ?? i}>
                   <Td className="whitespace-nowrap text-[#737373]">
-                    {formatDateTime(entry.timestamp)}
+                    {formatDateTime(entry.created_at)}
                   </Td>
-                  <Td className="font-medium">{entry.user || '—'}</Td>
+                  <Td className="font-medium">{entry.name || '—'}</Td>
                   <Td>
-                    <Badge variant="muted">{entry.userRole || '—'}</Badge>
+                    <Badge variant="muted">{entry.role || '—'}</Badge>
                   </Td>
                   <Td>
                     <Badge variant={ACTION_BADGE_VARIANT[entry.action] ?? 'muted'}>
                       {formatActionLabel(entry.action)}
                     </Badge>
                   </Td>
-                  <Td>{entry.entityType || '—'}</Td>
+                  <Td>{entry.entity_type || '—'}</Td>
                   <Td>{entry.entity || '—'}</Td>
                   <Td className="text-[#737373] max-w-xs truncate">{entry.details || '—'}</Td>
                 </Tr>
