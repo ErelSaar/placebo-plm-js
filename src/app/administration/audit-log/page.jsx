@@ -134,162 +134,168 @@ export default function AuditLogPage() {
       } else if (action === 'DELETE') {
         actionWord = 'deleted';
       } else if (action === 'UPDATE') {
-        actionWord = entityType === 'order' ? 'updated' : 'edited';
-      } else if (action === 'RESTORE') {
-        return actionFilter.toUpperCase() === 'RESTORE';
-      } else if (action === 'HARD_DELETE') {
-        return actionFilter.toUpperCase() === 'HARD_DELETE';
+      if (entityType === 'order') {
+        actionWord = 'updated';
+      } else if (entityType === 'user') {
+        actionWord = 'role changed';
       } else {
-        return false;
+        actionWord = 'edited';
       }
+    } else if (action === 'RESTORE') {
+      return actionFilter.toUpperCase() === 'RESTORE';
+    } else if (action === 'HARD_DELETE') {
+      return actionFilter.toUpperCase() === 'HARD_DELETE';
+    } else {
+      return false;
+    }
 
-      const combined = `${entityType} ${actionWord}`;
+    const combined = `${entityType} ${actionWord}`;
 
-      return combined.toLowerCase() === actionFilter.toLowerCase();
-    })();
+    return combined.toLowerCase() === actionFilter.toLowerCase();
+  })();
 
-    const matchEntityType =
-      !entityTypeFilter ||
-      entry.entity_type?.toLowerCase() === entityTypeFilter.toLowerCase();
+  const matchEntityType =
+    !entityTypeFilter ||
+    entry.entity_type?.toLowerCase() === entityTypeFilter.toLowerCase();
 
-    const entryDate = entry.created_at ? new Date(entry.created_at) : null;
-    const matchDateFrom =
-      !dateFrom || (entryDate && entryDate >= new Date(dateFrom));
-    const matchDateTo =
-      !dateTo ||
-      (entryDate && entryDate <= new Date(dateTo + 'T23:59:59'));
-
-    return (
-      matchSearch &&
-      matchUser &&
-      matchAction &&
-      matchEntityType &&
-      matchDateFrom &&
-      matchDateTo
-    );
-  });
-
-  const hasFilters = search || userFilter || actionFilter || entityTypeFilter || dateFrom || dateTo;
-
-  function clearFilters() {
-    setSearch('');
-    setUserFilter('');
-    setActionFilter('');
-    setEntityTypeFilter('');
-    setDateFrom('');
-    setDateTo('');
-  }
+  const entryDate = entry.created_at ? new Date(entry.created_at) : null;
+  const matchDateFrom =
+    !dateFrom || (entryDate && entryDate >= new Date(dateFrom));
+  const matchDateTo =
+    !dateTo ||
+    (entryDate && entryDate <= new Date(dateTo + 'T23:59:59'));
 
   return (
-    <div>
-      <PageHeader
-        title="Audit Log"
-        subtitle="History of important actions performed in the PLM"
-      />
+    matchSearch &&
+    matchUser &&
+    matchAction &&
+    matchEntityType &&
+    matchDateFrom &&
+    matchDateTo
+  );
+});
 
-      <div className="px-8 py-6">
-        {/* Filter bar */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <Input
-            placeholder="Search user, record, or details…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-56"
-          />
-          <Select
-            value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
-            className="w-44"
-          >
-            <option value="">All Users</option>
+const hasFilters = search || userFilter || actionFilter || entityTypeFilter || dateFrom || dateTo;
 
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name || u.username}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className="w-44"
-          >
-            {ACTION_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </Select>
-          <Select
-            value={entityTypeFilter}
-            onChange={(e) => setEntityTypeFilter(e.target.value)}
-            className="w-36"
-          >
-            {ENTITY_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </Select>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="border border-[#e5e5e5] rounded px-3 py-2 text-[13px] bg-white focus:outline-none focus:ring-1 focus:ring-[#0a0a0a] focus:border-[#0a0a0a]"
-            title="From date"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="border border-[#e5e5e5] rounded px-3 py-2 text-[13px] bg-white focus:outline-none focus:ring-1 focus:ring-[#0a0a0a] focus:border-[#0a0a0a]"
-            title="To date"
-          />
-          {hasFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-[13px] text-[#737373] hover:text-[#0a0a0a] px-2 transition-colors"
-            >
-              Clear
-            </button>
-          )}
-        </div>
+function clearFilters() {
+  setSearch('');
+  setUserFilter('');
+  setActionFilter('');
+  setEntityTypeFilter('');
+  setDateFrom('');
+  setDateTo('');
+}
 
-        {/* Table */}
-        {filtered.length === 0 ? (
-          <EmptyState
-            title="No activity recorded yet"
-            description="Audit log entries will appear here once backend logging is connected."
-          />
-        ) : (
-          <Table>
-            <Thead>
-              <tr>
-                <Th>Date & Time</Th>
-                <Th>User</Th>
-                <Th>Role</Th>
-                <Th>Action</Th>
-                <Th>Entity Type</Th>
-              </tr>
-            </Thead>
-            <Tbody>
-              {filtered.map((entry, i) => (
-                <Tr key={entry.id ?? i}>
-                  <Td className="whitespace-nowrap text-[#737373]">
-                    {formatDateTime(entry.created_at)}
-                  </Td>
-                  <Td className="font-medium">{entry.name || '—'}</Td>
-                  <Td>
-                    <Badge variant="muted">{entry.role || '—'}</Badge>
-                  </Td>
-                  <Td>
-                    <Badge variant={ACTION_BADGE_VARIANT[entry.action] ?? 'muted'}>
-                      {formatActionLabel(entry.action)}
-                    </Badge>
-                  </Td>
-                  <Td>{entry.entity_type || '—'}</Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+return (
+  <div>
+    <PageHeader
+      title="Audit Log"
+      subtitle="History of important actions performed in the PLM"
+    />
+
+    <div className="px-8 py-6">
+      {/* Filter bar */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <Input
+          placeholder="Search user, record, or details…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-56"
+        />
+        <Select
+          value={userFilter}
+          onChange={(e) => setUserFilter(e.target.value)}
+          className="w-44"
+        >
+          <option value="">All Users</option>
+
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name || u.username}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          className="w-44"
+        >
+          {ACTION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </Select>
+        <Select
+          value={entityTypeFilter}
+          onChange={(e) => setEntityTypeFilter(e.target.value)}
+          className="w-36"
+        >
+          {ENTITY_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </Select>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="border border-[#e5e5e5] rounded px-3 py-2 text-[13px] bg-white focus:outline-none focus:ring-1 focus:ring-[#0a0a0a] focus:border-[#0a0a0a]"
+          title="From date"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="border border-[#e5e5e5] rounded px-3 py-2 text-[13px] bg-white focus:outline-none focus:ring-1 focus:ring-[#0a0a0a] focus:border-[#0a0a0a]"
+          title="To date"
+        />
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="text-[13px] text-[#737373] hover:text-[#0a0a0a] px-2 transition-colors"
+          >
+            Clear
+          </button>
         )}
       </div>
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          title="No activity recorded yet"
+          description="Audit log entries will appear here once backend logging is connected."
+        />
+      ) : (
+        <Table>
+          <Thead>
+            <tr>
+              <Th>Date & Time</Th>
+              <Th>User</Th>
+              <Th>Role</Th>
+              <Th>Action</Th>
+              <Th>Entity Type</Th>
+            </tr>
+          </Thead>
+          <Tbody>
+            {filtered.map((entry, i) => (
+              <Tr key={entry.id ?? i}>
+                <Td className="whitespace-nowrap text-[#737373]">
+                  {formatDateTime(entry.created_at)}
+                </Td>
+                <Td className="font-medium">{entry.name || '—'}</Td>
+                <Td>
+                  <Badge variant="muted">{entry.role || '—'}</Badge>
+                </Td>
+                <Td>
+                  <Badge variant={ACTION_BADGE_VARIANT[entry.action] ?? 'muted'}>
+                    {formatActionLabel(entry.action)}
+                  </Badge>
+                </Td>
+                <Td>{entry.entity_type || '—'}</Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
     </div>
-  );
+  </div>
+);
 }
