@@ -12,18 +12,27 @@ import { recordRepository } from '@/lib/data/action-record';
 
 const ACTION_OPTIONS = [
   { value: '', label: 'All Actions' },
-  { value: 'material_created', label: 'Material Created' },
-  { value: 'material_edited', label: 'Material Edited' },
-  { value: 'material_deleted', label: 'Material Deleted' },
-  { value: 'product_created', label: 'Product Created' },
-  { value: 'product_edited', label: 'Product Edited' },
-  { value: 'product_deleted', label: 'Product Deleted' },
-  { value: 'order_created', label: 'Order Created' },
-  { value: 'order_updated', label: 'Order Updated' },
-  { value: 'user_role_changed', label: 'User Role Changed' },
+  { value: 'material created', label: 'Material Created' },
+  { value: 'material edited', label: 'Material Edited' },
+  { value: 'material deleted', label: 'Material Deleted' },
+  { value: 'product created', label: 'Product Created' },
+  { value: 'product edited', label: 'Product Edited' },
+  { value: 'product deleted', label: 'Product Deleted' },
+  { value: 'order created', label: 'Order Created' },
+  { value: 'order updated', label: 'Order Updated' },
+  { value: 'user role changed', label: 'User Role Changed' },
   { value: 'RESTORE', label: 'Record Restored' },
   { value: 'HARD_DELETE', label: 'Permanently Deleted' },
 ];
+
+const ACTION_LABELS = {
+  CREATE: 'created',
+  EDIT: 'edited',
+  UPDATE: 'updated',
+  DELETE: 'deleted',
+  RESTORE: 'restored',
+  HARD_DELETE: 'permanently deleted',
+};
 
 const ENTITY_TYPE_OPTIONS = [
   { value: '', label: 'All Types' },
@@ -104,17 +113,44 @@ export default function AuditLogPage() {
   });
 
   const filtered = logsWithUsers.filter((entry) => {
-
     const matchSearch =
       !search ||
-      (entry.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (entry.id || '').toLowerCase().includes(search.toLowerCase()) ||
       (entry.entity_type || '').toLowerCase().includes(search.toLowerCase()) ||
       (entry.action || '').toLowerCase().includes(search.toLowerCase());
 
-    const matchUser = !userFilter || entry.name === userFilter;
-    const matchAction = !actionFilter || entry.action === actionFilter;
+    const matchUser =
+      !userFilter ||
+      entry.user_id.toLowerCase() === userFilter.toLowerCase();
+
+    const matchAction = !actionFilter || (() => {
+      const action = entry.action?.toUpperCase();
+      const entityType = entry.entity_type?.toLowerCase();
+
+      let actionWord;
+
+      if (action === 'CREATE') {
+        actionWord = 'created';
+      } else if (action === 'DELETE') {
+        actionWord = 'deleted';
+      } else if (action === 'UPDATE') {
+        actionWord = entityType === 'order' ? 'updated' : 'edited';
+      } else if (action === 'RESTORE') {
+        return actionFilter.toUpperCase() === 'RESTORE';
+      } else if (action === 'HARD_DELETE') {
+        return actionFilter.toUpperCase() === 'HARD_DELETE';
+      } else {
+        return false;
+      }
+
+      const combined = `${entityType} ${actionWord}`;
+
+      return combined.toLowerCase() === actionFilter.toLowerCase();
+    })();
+
     const matchEntityType =
-      !entityTypeFilter || entry.entity_type === entityTypeFilter;
+      !entityTypeFilter ||
+      entry.entity_type?.toLowerCase() === entityTypeFilter.toLowerCase();
 
     const entryDate = entry.created_at ? new Date(entry.created_at) : null;
     const matchDateFrom =
@@ -166,8 +202,9 @@ export default function AuditLogPage() {
             className="w-44"
           >
             <option value="">All Users</option>
+
             {users.map((u) => (
-              <option key={u.id} value={u.username}>
+              <option key={u.id} value={u.id}>
                 {u.name || u.username}
               </option>
             ))}
