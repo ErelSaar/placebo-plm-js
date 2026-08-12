@@ -35,4 +35,19 @@ function initializePermission() {
     setPermission(storedUser);
 }
 
-export { initializePermission, setPermission, getPermission };
+function canViewAdministration() {
+    initializePermission();
+    return getPermission() >= 3; // admin (Manager) or owner
+}
+
+function canManageUsers() {
+    initializePermission();
+    return getPermission() >= 4; // owner only
+}
+
+function canViewAuditLog() {
+    initializePermission();
+    return getPermission() >= 3; // admin (Manager) or owner
+}
+
+export { initializePermission, setPermission, getPermission, canViewAdministration, canManageUsers, canViewAuditLog };
