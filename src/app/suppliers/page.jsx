@@ -106,39 +106,39 @@ export default function SuppliersPage() {
   }
 
   function handleSave() {
-  const errs = validate();
+    const errs = validate();
 
-  if (Object.keys(errs).length > 0) {
-    setErrors(errs);
-    return;
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+
+    const id = uuidv4();
+
+    const supplier = {
+      id,
+      ...form,
+      lead_time: form.lead_time ? Number(form.lead_time) : null,
+      minimum_order_quantity: form.minimum_order_quantity
+        ? Number(form.minimum_order_quantity)
+        : null,
+    };
+
+    supplierRepository.create(supplier);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'supplier',
+      entity_id: id,
+      before: null,
+      after: supplier,
+    });
+
+    setModal(false);
+    load();
+    router.push(`/suppliers/${id}`);
   }
-
-  const id = uuidv4();
-
-  const supplier = {
-    id,
-    ...form,
-    lead_time: form.lead_time ? Number(form.lead_time) : null,
-    minimum_order_quantity: form.minimum_order_quantity
-      ? Number(form.minimum_order_quantity)
-      : null,
-  };
-
-  supplierRepository.create(supplier);
-
-  recordRepository.create({
-    user_id: currentUser.id,
-    action: 'CREATE',
-    entity_type: 'supplier',
-    entity_id: id,
-    before: null,
-    after: supplier,
-  });
-
-  setModal(false);
-  load();
-  router.push(`/suppliers/${id}`);
-}
 
   function set(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));

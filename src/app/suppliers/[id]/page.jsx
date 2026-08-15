@@ -159,7 +159,31 @@ export default function SupplierDetailPage({ params }) {
   }
 
   function handleArchive() {
-    supplierRepository.update(id, { status: supplier.status === 'archived' ? 'active' : 'archived' });
+    const oldSupplier = supplierRepository.getById(id);
+
+    if (!oldSupplier) return;
+
+    const newStatus =
+      oldSupplier.status === 'archived' ? 'active' : 'archived';
+
+    const updatedSupplier = {
+      ...oldSupplier,
+      status: newStatus,
+    };
+
+    supplierRepository.update(id, {
+      status: newStatus,
+    });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: newStatus === 'archived' ? 'ARCHIVE' : 'RESTORE',
+      entity_type: 'supplier',
+      entity_id: id,
+      before: oldSupplier,
+      after: updatedSupplier,
+    });
+
     load();
   }
 

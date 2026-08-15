@@ -29,7 +29,7 @@ export default function MaterialDetailPage({ params }) {
   const [usedInProducts, setUsedInProducts] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [errors, setErrors] = useState({});
-    const [currencies, setCurrencies] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
@@ -111,10 +111,6 @@ export default function MaterialDetailPage({ params }) {
       errs.internal_code = 'Internal code is required';
     }
 
-    // if (!form.color?.trim()) {
-    //   errs.color = 'color is required';
-    // }
-
     if (!form.category) {
       errs.category = 'Category is required';
     }
@@ -186,7 +182,31 @@ export default function MaterialDetailPage({ params }) {
   }
 
   function handleArchive() {
-    materialRepository.update(id, { status: material.status === 'archived' ? 'active' : 'archived' });
+    const oldMaterial = materialRepository.getById(id);
+
+    if (!oldMaterial) return;
+
+    const newStatus =
+      oldMaterial.status === 'archived' ? 'active' : 'archived';
+
+    const updatedMaterial = {
+      ...oldMaterial,
+      status: newStatus,
+    };
+
+    materialRepository.update(id, {
+      status: newStatus,
+    });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: newStatus === 'archived' ? 'ARCHIVE' : 'RESTORE',
+      entity_type: 'material',
+      entity_id: id,
+      before: oldMaterial,
+      after: updatedMaterial,
+    });
+
     load();
   }
 

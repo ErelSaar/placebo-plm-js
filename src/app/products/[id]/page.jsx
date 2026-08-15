@@ -171,13 +171,24 @@ export default function ProductDetailPage({ params }) {
     });
 
     sourceBomLines.forEach((line) => {
-      bomRepository.create({
+      const newBomLine = {
         id: uuidv4(),
         product_id: newId,
         material_id: line.material_id,
         quantity_per_unit: line.quantity_per_unit,
         notes: line.notes || '',
         sort_order: line.sort_order,
+      };
+
+      bomRepository.create(newBomLine);
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'CREATE',
+        entity_type: 'bom_line',
+        entity_id: newBomLine.id,
+        before: null,
+        after: newBomLine,
       });
     });
 
@@ -196,9 +207,30 @@ export default function ProductDetailPage({ params }) {
 
   function handleMultiplierChange(val) {
     const num = parseFloat(val);
+
     if (!isNaN(num) && num > 0) {
+      const oldProduct = productRepository.getById(id);
+
+      if (!oldProduct) return;
+
+      const updatedProduct = {
+        ...oldProduct,
+        pricing_multiplier: num,
+      };
+
       setMultiplier(num);
-      productRepository.update(id, { pricing_multiplier: num });
+      productRepository.update(id, {
+        pricing_multiplier: num,
+      });
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'UPDATE',
+        entity_type: 'product',
+        entity_id: id,
+        before: oldProduct,
+        after: updatedProduct,
+      });
     }
   }
 
@@ -263,7 +295,7 @@ export default function ProductDetailPage({ params }) {
       recordRepository.create({
         user_id: currentUser.id,
         action: 'UPDATE',
-        entity_type: 'bom',
+        entity_type: 'bom_line',
         entity_id: editBomLine.id,
         before: editBomLine,
         after: updatedBom,
@@ -281,7 +313,7 @@ export default function ProductDetailPage({ params }) {
       recordRepository.create({
         user_id: currentUser.id,
         action: 'CREATE',
-        entity_type: 'bom',
+        entity_type: 'bom_line',
         entity_id: bom.id,
         before: null,
         after: bom,

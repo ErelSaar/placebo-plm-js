@@ -125,6 +125,7 @@ export default function MaterialsPage() {
 
     return errs;
   }
+  
   function handleSave() {
     const errs = validate();
 
