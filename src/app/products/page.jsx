@@ -7,10 +7,12 @@ import {
   EmptyState, Input, Select, Modal, Textarea,
 } from '@/components/ui';
 import { productRepository } from '@/lib/data/products';
+import { productRepository2 } from '@/lib/data/backend-products';
 import { PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
+import { apiRequest } from '@/lib/data/aws-storage';
 import { getItems } from '@/lib/data/storage';
 
 const BLANK = {
@@ -45,7 +47,16 @@ export default function ProductsPage() {
     setProducts(productRepository.getAll());
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // const testCurrency = async () => {
+    //   const currencies = await apiRequest("currencies", "get");
+
+    //   console.log("Currencies:", currencies);
+    // };
+
+    // testCurrency();
+    load();
+  }, []);
 
   const permission = getPermission('products');
 
