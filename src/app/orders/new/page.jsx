@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
+import { loadCurrencies } from '@/lib/data/currency';
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function NewOrderPage() {
   const [productSearch, setProductSearch] = useState('');
   const [lines, setLines] = useState([]);
   const [errors, setErrors] = useState({});
+  const [currencies, setCurrencies] = useState([]);
   const [form, setForm] = useState({
     order_number: '',
     order_name: '',
@@ -36,6 +38,9 @@ export default function NewOrderPage() {
 
   useEffect(() => {
     setProducts(productRepository.getAll().filter((p) => p.status === 'active'));
+    loadCurrencies()
+      .then(setCurrencies)
+      .catch((err) => console.error("Failed to load currencies:", err));
   }, []);
 
   function set(field, value) {
@@ -255,7 +260,25 @@ export default function NewOrderPage() {
                   <option value="fall / winter">Fall / Winter</option>
                   <option value="spring / summer">Spring / Summer</option>
                 </Select>
-                <Input label="Currency" value={form.order_currency} onChange={(e) => set('order_currency', e.target.value)} error={errors.order_currency} />
+                {currencies.length === 0 ? (
+                  <Input
+                    label="Currency"
+                    value={form.order_currency || 'EUR'}
+                    onChange={(e) => set('order_currency', e.target.value)}
+                    error={errors.order_currency}
+                  />
+                ) : (
+                  <Select
+                    label="Currency"
+                    value={form.order_currency || 'EUR'}
+                    onChange={(e) => set('order_currency', e.target.value)}
+                    error={errors.order_currency}
+                  >
+                    {currencies.map((c) => (
+                      <option key={c.quote} value={c.quote}>{c.quote}</option>
+                    ))}
+                  </Select>
+                )}
                 <Input label="Order Date" type="date" value={form.order_date} onChange={(e) => set('order_date', e.target.value)} error={errors.order_date} />
                 <Input label="Target Date" type="date" value={form.target_date} onChange={(e) => set('target_date', e.target.value)} error={errors.target_date} />
                 <Input label="Production Country" value={form.production_country} onChange={(e) => set('production_country', e.target.value)} error={errors.production_country} />

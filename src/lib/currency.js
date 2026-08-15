@@ -1,74 +1,46 @@
-// ─── Supported Currencies ─────────────────────────────────────────────────────
-// Centralised list. Add or remove currencies here; all selectors build from this.
-
-export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'SEK', 'ILS', 'CNY'];
-
-// ─── Development FX Rates ─────────────────────────────────────────────────────
-// TODO: Replace MOCK_FX_RATES with a backend API call when fx_rates records are
-// available. Expected contract:
-//   GET /api/fx-rates  →  [{ base, quote, rate, rate_date, source }]
-// The getRate() function below is the single point to swap in the real provider.
-//
-// These are approximate indicative rates as of 2026-08-14 for development only.
-// They must NOT be used for financial decisions or real transactions.
-
-const MOCK_FX_RATES = [
-  // EUR pairs
-  { base: 'EUR', quote: 'USD', rate: 1.08,    rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'EUR', quote: 'GBP', rate: 0.855,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'EUR', quote: 'SEK', rate: 11.24,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'EUR', quote: 'ILS', rate: 3.97,    rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'EUR', quote: 'CNY', rate: 7.82,    rate_date: '2026-08-14', source: 'dev-mock' },
-  // USD pairs
-  { base: 'USD', quote: 'EUR', rate: 0.926,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'USD', quote: 'GBP', rate: 0.792,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'USD', quote: 'SEK', rate: 10.41,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'USD', quote: 'ILS', rate: 3.68,    rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'USD', quote: 'CNY', rate: 7.24,    rate_date: '2026-08-14', source: 'dev-mock' },
-  // GBP pairs
-  { base: 'GBP', quote: 'EUR', rate: 1.170,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'GBP', quote: 'USD', rate: 1.263,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'GBP', quote: 'SEK', rate: 13.15,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'GBP', quote: 'ILS', rate: 4.64,    rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'GBP', quote: 'CNY', rate: 9.15,    rate_date: '2026-08-14', source: 'dev-mock' },
-  // SEK pairs
-  { base: 'SEK', quote: 'EUR', rate: 0.0890,  rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'SEK', quote: 'USD', rate: 0.0961,  rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'SEK', quote: 'GBP', rate: 0.0761,  rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'SEK', quote: 'ILS', rate: 0.353,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'SEK', quote: 'CNY', rate: 0.696,   rate_date: '2026-08-14', source: 'dev-mock' },
-  // ILS pairs
-  { base: 'ILS', quote: 'EUR', rate: 0.252,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'ILS', quote: 'USD', rate: 0.272,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'ILS', quote: 'GBP', rate: 0.215,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'ILS', quote: 'SEK', rate: 2.83,    rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'ILS', quote: 'CNY', rate: 1.97,    rate_date: '2026-08-14', source: 'dev-mock' },
-  // CNY pairs
-  { base: 'CNY', quote: 'EUR', rate: 0.1279,  rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'CNY', quote: 'USD', rate: 0.138,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'CNY', quote: 'GBP', rate: 0.1094,  rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'CNY', quote: 'SEK', rate: 1.438,   rate_date: '2026-08-14', source: 'dev-mock' },
-  { base: 'CNY', quote: 'ILS', rate: 0.508,   rate_date: '2026-08-14', source: 'dev-mock' },
-];
-
 // ─── Rate Lookup ───────────────────────────────────────────────────────────────
 
 /**
- * Get an FX rate record for a currency pair.
+ * Get an FX rate for a currency pair using EUR-based rates from the backend.
  *
- * Isolate point: swap out MOCK_FX_RATES lookup here for a real backend call
- * once GET /api/fx-rates is available.
+ * The backend returns rates in the form:
+ *   [{ date: string, base: 'EUR', quote: string, rate: number }, ...]
+ *
+ * Cross-rates are derived as:
+ *   from → to  =  (EUR→to rate) / (EUR→from rate)
  *
  * @param {string} fromCurrency
  * @param {string} toCurrency
- * @returns {{ base: string, quote: string, rate: number, rate_date: string|null, source: string|null } | null}
+ * @param {Array<{date: string, base: string, quote: string, rate: number}>} fxRates
+ *   EUR-based rate array from loadCurrencies().
+ * @returns {{ base: string, quote: string, rate: number, rate_date: string|null, source: null } | null}
  */
-export function getRate(fromCurrency, toCurrency) {
+export function getRate(fromCurrency, toCurrency, fxRates) {
   if (!fromCurrency || !toCurrency) return null;
+
   if (fromCurrency === toCurrency) {
     return { base: fromCurrency, quote: toCurrency, rate: 1, rate_date: null, source: null };
   }
-  return MOCK_FX_RATES.find((r) => r.base === fromCurrency && r.quote === toCurrency) ?? null;
+
+  if (!fxRates || fxRates.length === 0) return null;
+
+  // Each entry has base='EUR'. EUR itself is included with rate=1.
+  const fromEntry = fxRates.find((r) => r.quote === fromCurrency);
+  const toEntry   = fxRates.find((r) => r.quote === toCurrency);
+
+  if (!fromEntry || !toEntry) return null;
+  if (!fromEntry.rate || fromEntry.rate <= 0) return null;
+
+  // Cross-rate: from → to = (EUR→to) / (EUR→from)
+  const crossRate = toEntry.rate / fromEntry.rate;
+
+  return {
+    base: fromCurrency,
+    quote: toCurrency,
+    rate: crossRate,
+    rate_date: toEntry.date ?? null,
+    source: null,
+  };
 }
 
 // ─── Currency Conversion ───────────────────────────────────────────────────────
@@ -108,14 +80,16 @@ export function roundForDisplay(n) {
 // ─── Currency List Builder ─────────────────────────────────────────────────────
 
 /**
- * Build an ordered, deduplicated currency selector list.
- * The order currency is always first; supported currencies follow.
+ * Build an ordered, deduplicated currency selector list from backend rates.
+ * The order currency is always first; all currencies with backend rates follow.
+ * Only currencies that actually have a rate from the backend are included.
  *
  * @param {string} orderCurrency
- * @param {string|null} [baseCurrency]  organisation base currency if known
+ * @param {Array<{quote: string}>} fxRates  EUR-based rate array from loadCurrencies().
+ * @param {string|null} [baseCurrency]       organisation base currency if known
  * @returns {string[]}
  */
-export function buildCurrencyList(orderCurrency, baseCurrency = null) {
+export function buildCurrencyList(orderCurrency, fxRates, baseCurrency = null) {
   const seen = new Set();
   const list = [];
 
@@ -125,7 +99,12 @@ export function buildCurrencyList(orderCurrency, baseCurrency = null) {
 
   add(orderCurrency);
   if (baseCurrency) add(baseCurrency);
-  for (const c of SUPPORTED_CURRENCIES) add(c);
+
+  if (fxRates && fxRates.length > 0) {
+    for (const r of fxRates) {
+      if (r.quote) add(r.quote);
+    }
+  }
 
   return list;
 }

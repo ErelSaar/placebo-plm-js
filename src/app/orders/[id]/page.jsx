@@ -32,6 +32,7 @@ import {
   buildCurrencyList,
   sessionCurrencyKey,
 } from '@/lib/currency';
+import { loadCurrencies } from '@/lib/data/currency';
 
 const TABS = [
   { id: 'products', label: 'Products' },
@@ -63,6 +64,8 @@ export default function OrderDetailPage({ params }) {
   const [errors, setErrors] = useState({});
   // Session-level display currency (not persisted to order, not audited)
   const [displayCurrency, setDisplayCurrency] = useState(null);
+  // EUR-based FX rates loaded from backend
+  const [fxRates, setFxRates] = useState([]);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
@@ -108,7 +111,12 @@ export default function OrderDetailPage({ params }) {
     });
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+    loadCurrencies()
+      .then(setFxRates)
+      .catch((err) => console.error("Failed to load currencies:", err));
+  }, [id]);
 
   const permission = getPermission('order');
 
@@ -138,8 +146,8 @@ export default function OrderDetailPage({ params }) {
 
   const effectiveDisplayCurrency = displayCurrency ?? order.order_currency;
   const isConverting = effectiveDisplayCurrency !== order.order_currency;
-  const fxRate = isConverting ? getRate(order.order_currency, effectiveDisplayCurrency) : null;
-  const currencyList = buildCurrencyList(order.order_currency);
+  const fxRate = isConverting ? getRate(order.order_currency, effectiveDisplayCurrency, fxRates) : null;
+  const currencyList = buildCurrencyList(order.order_currency, fxRates);
 
   /**
    * Format a monetary amount for display in the current display currency.
@@ -584,7 +592,15 @@ export default function OrderDetailPage({ params }) {
                 <option value="fall / winter">Fall / Winter</option>
                 <option value="spring / summer">Spring / Summer</option>
               </Select>
-              <Input label="Currency" value={metaForm.order_currency || ''} error={errors.order_currency} onChange={(e) => setMeta('order_currency', e.target.value)} />
+              {fxRates.length === 0 ? (
+                <Input label="Currency" value={metaForm.order_currency || ''} error={errors.order_currency} onChange={(e) => setMeta('order_currency', e.target.value)} />
+              ) : (
+                <Select label="Currency" value={metaForm.order_currency || 'EUR'} error={errors.order_currency} onChange={(e) => setMeta('order_currency', e.target.value)}>
+                  {fxRates.map((r) => (
+                    <option key={r.quote} value={r.quote}>{r.quote}</option>
+                  ))}
+                </Select>
+              )}
               <Input label="Order Date" type="date" value={metaForm.order_date || ''} error={errors.order_date} onChange={(e) => setMeta('order_date', e.target.value)} />
               <Input label="Target Date" type="date" value={metaForm.target_date || ''} error={errors.target_date} onChange={(e) => setMeta('target_date', e.target.value)} />
               <Input label="Production Country" value={metaForm.production_country || ''} error={errors.production_country} onChange={(e) => setMeta('production_country', e.target.value)} />

@@ -15,6 +15,7 @@ import { calculateRequiredMaterials } from '@/lib/calculations';
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
+import { loadCurrencies } from '@/lib/data/currency';
 
 export default function SupplierDetailPage({ params }) {
   const { id } = use(params);
@@ -27,6 +28,7 @@ export default function SupplierDetailPage({ params }) {
   const [activeOrderValue, setActiveOrderValue] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [errors, setErrors] = useState({});
+  const [currencies, setCurrencies] = useState([]);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
@@ -68,7 +70,12 @@ export default function SupplierDetailPage({ params }) {
     setActiveOrderValue(totalValue);
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+    loadCurrencies()
+      .then(setCurrencies)
+      .catch((err) => console.error("Failed to load currencies:", err));
+  }, [id]);
 
   if (!supplier) return null;
 
@@ -235,7 +242,25 @@ export default function SupplierDetailPage({ params }) {
                 <div className="grid grid-cols-2 gap-4">
                   <Input label="Supplier Name" value={form.name || ''} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
                   <Input label="Country" value={form.country || ''} error={errors.country} onChange={(e) => set('country', e.target.value)} />
-                  <Input label="Currency" value={form.currency || ''} error={errors.currency} onChange={(e) => set('currency', e.target.value)} />
+                  {currencies.length === 0 ? (
+                    <Input
+                      label="Currency"
+                      value={form.currency || 'EUR'}
+                      error={errors.currency}
+                      onChange={(e) => set('currency', e.target.value)}
+                    />
+                  ) : (
+                    <Select
+                      label="Currency"
+                      value={form.currency || 'EUR'}
+                      error={errors.currency}
+                      onChange={(e) => set('currency', e.target.value)}
+                    >
+                      {currencies.map((c) => (
+                        <option key={c.quote} value={c.quote}>{c.quote}</option>
+                      ))}
+                    </Select>
+                  )}
                   <Input label="Contact Person" value={form.contact_person || ''} error={errors.contact_person} onChange={(e) => set('contact_person', e.target.value)} />
                   <Input label="Email" type="email" value={form.email || ''} error={errors.email} onChange={(e) => set('email', e.target.value)} />
                   <Input label="Phone" value={form.phone || ''} error={errors.phone} onChange={(e) => set('phone', e.target.value)} />
