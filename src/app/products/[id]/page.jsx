@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
 import { recordRepository } from '@/lib/data/action-record';
 import { getItems } from '@/lib/data/storage';
+import { apiRequest } from '@/lib/data/aws-storage';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -46,6 +47,7 @@ export default function ProductDetailPage({ params }) {
   const [bomForm, setBomForm] = useState({ material_id: '', quantity_per_unit: '', notes: '' });
   const [multiplier, setMultiplier] = useState(3.5);
   const [errors, setErrors] = useState({});
+  const [currencies, setCurrencies] = useState([]);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
@@ -72,6 +74,16 @@ export default function ProductDetailPage({ params }) {
   }
 
   useEffect(() => {
+    const testCurrency = async () => {
+      try {
+        const data = await apiRequest("currencies", "get");
+        setCurrencies(data);
+      } catch (error) {
+        console.error("Failed to retrieve currencies:", error);
+      }
+    };
+
+    testCurrency();
     load();
     if (searchParams.get('edit') === '1') {
       setEditing(true);
@@ -400,7 +412,25 @@ export default function ProductDetailPage({ params }) {
                       {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </Select>
                     <Input label="Selling Price" type="number" value={form.selling_price ?? ''} min={0} error={errors.selling_price} onChange={(e) => set('selling_price', e.target.value)} />
-                    <Input label="Currency" value={form.currency || ''} onChange={(e) => set('currency', e.target.value)} />
+                    {currencies.length === 0 ? (
+                      <Input
+                        label="Currency"
+                        value={form.currency || 'EUR'}
+                        onChange={(e) => set('currency', e.target.value)}
+                      />
+                    ) : (
+                      <Select
+                        label="Currency"
+                        value={form.currency || 'EUR'}
+                        onChange={(e) => set('currency', e.target.value)}
+                      >
+                        {currencies.map((currency) => (
+                          <option key={currency.quote} value={currency.quote}>
+                            {currency.quote}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
                     <Input label="Pricing Multiplier" type="number" step="0.1" value={form.pricing_multiplier ?? 3.5} min={0.1} onChange={(e) => set('pricing_multiplier', e.target.value)} />
                     <Textarea label="Description" value={form.description || ''} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
                     <Textarea label="Notes" value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />

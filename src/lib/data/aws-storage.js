@@ -423,9 +423,6 @@ export const apiRequest = async (
         options.body = JSON.stringify(body);
     }
 
-    console.log("API URL:", BASE_URL);
-    console.log("API URL:", url);
-
     return await handleResponse(
         await fetch(url, options)
     );

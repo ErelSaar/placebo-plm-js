@@ -12,8 +12,8 @@ import { PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
-import { apiRequest } from '@/lib/data/aws-storage';
 import { getItems } from '@/lib/data/storage';
+import { apiRequest } from '@/lib/data/aws-storage';
 
 const BLANK = {
   name: '',
@@ -41,6 +41,7 @@ export default function ProductsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [errors, setErrors] = useState({});
+  const [currencies, setCurrencies] = useState([]);
 
   function load() {
     initializePermission();
@@ -48,13 +49,15 @@ export default function ProductsPage() {
   }
 
   useEffect(() => {
-    // const testCurrency = async () => {
-    //   const currencies = await apiRequest("currencies", "get");
-
-    //   console.log("Currencies:", currencies);
-    // };
-
-    // testCurrency();
+    const testCurrency = async () => {
+      try {
+        const data = await apiRequest("currencies", "get");
+        setCurrencies(data);
+      } catch (error) {
+        console.error("Failed to retrieve currencies:", error);
+      }
+    };
+    testCurrency();
     load();
   }, []);
 
@@ -239,7 +242,25 @@ export default function ProductsPage() {
             {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
           <Input label="Selling Price" type="number" value={form.selling_price} min={0} error={errors.selling_price} onChange={(e) => set('selling_price', e.target.value)} />
-          <Input label="Currency" value={form.currency} onChange={(e) => set('currency', e.target.value)} />
+          {currencies.length === 0 ? (
+            <Input
+              label="Currency"
+              value={form.currency || 'EUR'}
+              onChange={(e) => set('currency', e.target.value)}
+            />
+          ) : (
+            <Select
+              label="Currency"
+              value={form.currency || 'EUR'}
+              onChange={(e) => set('currency', e.target.value)}
+            >
+              {currencies.map((currency) => (
+                <option key={currency.quote} value={currency.quote}>
+                  {currency.quote}
+                </option>
+              ))}
+            </Select>
+          )}
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
         </div>
