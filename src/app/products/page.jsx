@@ -6,8 +6,9 @@ import {
   PageHeader, Button, StatusBadge, Table, Thead, Tbody, Th, Td, Tr,
   EmptyState, Input, Select, Modal, Textarea,
 } from '@/components/ui';
-import { productRepository } from '@/lib/data/products';
-import { productRepository2 } from '@/lib/data/backend-products.js';
+// import { productRepository } from '@/lib/data/products';
+import { productRepository } from '@/lib/data/backend-products.js';
+import { auditRepository } from '@/lib/data/backend-audit.js';
 import { PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
 import { v4 as uuidv4 } from 'uuid';
@@ -43,9 +44,10 @@ export default function ProductsPage() {
   const [errors, setErrors] = useState({});
   const [currencies, setCurrencies] = useState([]);
 
-  function load() {
+  async function load() {
     initializePermission();
-    setProducts(productRepository.getAll());
+    const data = await productRepository.getAll()
+    setProducts(data);
   }
 
   useEffect(() => {
@@ -62,6 +64,8 @@ export default function ProductsPage() {
   }, []);
 
   const permission = getPermission('products');
+
+  console.log(products)
 
   const filtered = products.filter((p) => {
     const q = search.toLowerCase();
@@ -80,9 +84,9 @@ export default function ProductsPage() {
     setModal(true);
   }
 
-  function validate() {
+  async function validate() {
     const errs = {};
-    const all = productRepository.getAll();
+    const all = await productRepository.getAll();
     if (!form.name.trim()) errs.name = 'Name is required';
 
     if (!form.selling_price || Number(form.selling_price) <= 0) {
@@ -108,28 +112,31 @@ export default function ProductsPage() {
     return errs;
   }
 
-  function handleSave() {
-    const errs = validate();
+  async function handleSave() {
+    const errs = await validate();
+
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
+
     const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-    const id = uuidv4();
-
     const product = {
-      id,
       ...form,
       selling_price: form.selling_price !== '' ? Number(form.selling_price) : null,
       pricing_multiplier: Number(form.pricing_multiplier) || 3.5,
     };
 
-    productRepository.create(product);
+    const result = await productRepository.create(product);
 
-    recordRepository.create({
+    const createdProduct = result.product;
+    const id = createdProduct.id;
+
+    await auditRepository.create({
+      org_id: currentUser.org_id,
       user_id: currentUser.id,
-      action: 'CREATE',
+      action: 'create',
       entity_type: 'product',
       entity_id: id,
       before: null,
@@ -137,7 +144,7 @@ export default function ProductsPage() {
     });
 
     setModal(false);
-    load();
+    await load();
     router.push(`/products/${id}`);
   }
 
@@ -235,8 +242,8 @@ export default function ProductsPage() {
           <Input label="SKU *" value={form.sku} onChange={(e) => set('sku', e.target.value)} error={errors.sku} />
           <Select label="Season" value={form.season} error={errors.season} onChange={(e) => set('season', e.target.value)}>
             <option value="">Select season</option>
-            <option value="fall / winter">Fall / Winter</option>
-            <option value="spring / summer">Spring / Summer</option>
+            <option value="fall_winter">Fall / Winter</option>
+            <option value="spring_summer">Spring / Summer</option>
           </Select>
           <Select label="Category" value={form.category} onChange={(e) => set('category', e.target.value)}>
             {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}

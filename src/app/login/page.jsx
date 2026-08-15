@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { login, getUser } from '@/lib/auth';
 import { Input, Button } from '@/components/ui';
+import { userRepository } from '@/lib/data/backend-users.js';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,21 +19,37 @@ export default function LoginPage() {
     if (getUser()) router.replace('/');
   }, [router]);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+
     setError('');
     setLoading(true);
 
-    // Simulate async so the flow is easy to swap for a real API call
-    setTimeout(() => {
-      const result = login(username, password);
-      if (result.ok) {
+    try {
+      const result = await userRepository.login(
+        username.trim(),
+        password
+      );
+
+      if (result.success) {
+        // Store the logged-in user
+        localStorage.setItem(
+          'plm_logged_user',
+          JSON.stringify(result.user)
+        );
+
         router.replace('/');
       } else {
         setError('Incorrect username or password.');
         setLoading(false);
       }
-    }, 0);
+
+    } catch (err) {
+      console.error(err);
+
+      setError('Incorrect username or password.');
+      setLoading(false);
+    }
   }
 
   return (

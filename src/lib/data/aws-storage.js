@@ -330,10 +330,14 @@ export const apiRequest = async (
     dataType,
     command,
     id = null,
-    body = null
+    body = null,
+    filters = {}
 ) => {
 
-    // Order special handling
+    // =========================
+    // ORDER SPECIAL HANDLING
+    // =========================
+
     if (
         dataType === 'orders' &&
         (command === 'get' || command === 'update')
@@ -350,7 +354,10 @@ export const apiRequest = async (
     }
 
 
-    // Material special handling
+    // =========================
+    // MATERIAL SPECIAL HANDLING
+    // =========================
+
     if (
         dataType === 'materials' &&
         (command === 'get' || command === 'update')
@@ -375,18 +382,138 @@ export const apiRequest = async (
     let url = `${BASE_URL}/${dataType}`;
 
     switch (command) {
+
         case 'get':
             method = 'GET';
 
             if (id != null) {
+
                 url += `/${id}`;
+
+            } else {
+
+                const params = new URLSearchParams();
+
+
+                // =========================
+                // PRODUCT FILTERS
+                // =========================
+
+                if (dataType === 'products') {
+
+                    if (filters.name) {
+                        params.append('name', filters.name);
+                    }
+
+                    if (filters.style_code) {
+                        params.append(
+                            'style_code',
+                            filters.style_code
+                        );
+                    }
+
+                    if (filters.sku) {
+                        params.append(
+                            'sku',
+                            filters.sku
+                        );
+                    }
+
+                    if (filters.category) {
+                        params.append(
+                            'category',
+                            filters.category
+                        );
+                    }
+
+                    if (filters.status) {
+                        params.append(
+                            'status',
+                            filters.status
+                        );
+                    }
+                }
+
+
+                // =========================
+                // SUPPLIER FILTERS
+                // =========================
+
+                if (dataType === 'suppliers') {
+
+                    if (filters.name) {
+                        params.append(
+                            'name',
+                            filters.name
+                        );
+                    }
+
+                    if (filters.country) {
+                        params.append(
+                            'country',
+                            filters.country
+                        );
+                    }
+
+                    if (filters.status) {
+                        params.append(
+                            'status',
+                            filters.status
+                        );
+                    }
+                }
+
+
+                // =========================
+                // AUDIT LOG FILTERS
+                // =========================
+
+                if (dataType === 'audit_logs') {
+
+                    if (filters.search) {
+                        params.append(
+                            'search',
+                            filters.search
+                        );
+                    }
+
+                    if (filters.user) {
+                        params.append(
+                            'user',
+                            filters.user
+                        );
+                    }
+
+                    if (filters.action) {
+                        params.append(
+                            'action',
+                            filters.action
+                        );
+                    }
+
+                    if (filters.entity_type) {
+                        params.append(
+                            'entity_type',
+                            filters.entity_type
+                        );
+                    }
+                }
+
+
+                const queryString = params.toString();
+
+                if (queryString) {
+                    url += `?${queryString}`;
+                }
             }
 
             break;
 
+
         case 'add':
             method = 'POST';
             break;
+
 
         case 'update':
             method = 'PUT';
@@ -396,7 +523,9 @@ export const apiRequest = async (
             }
 
             url += `/${id}`;
+
             break;
+
 
         case 'delete':
             method = 'DELETE';
@@ -406,11 +535,14 @@ export const apiRequest = async (
             }
 
             url += `/${id}`;
+
             break;
+
 
         default:
             throw new Error(`Unknown command: ${command}`);
     }
+
 
     const options = {
         method,
@@ -419,9 +551,11 @@ export const apiRequest = async (
         }
     };
 
+
     if (body !== null && method !== 'GET') {
         options.body = JSON.stringify(body);
     }
+
 
     return await handleResponse(
         await fetch(url, options)

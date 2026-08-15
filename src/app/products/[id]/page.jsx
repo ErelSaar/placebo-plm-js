@@ -7,7 +7,8 @@ import {
   Modal, Warning, Tabs, Table, Thead, Tbody, Th, Td, Tr, EmptyState,
   formatCurrency, Badge,
 } from '@/components/ui';
-import { productRepository } from '@/lib/data/products';
+// import { productRepository } from '@/lib/data/products';
+import { productRepository } from '@/lib/data/backend-products.js';
 import { materialRepository } from '@/lib/data/materials';
 import { supplierRepository } from '@/lib/data/suppliers';
 import { bomRepository } from '@/lib/data/bom';
@@ -50,8 +51,8 @@ export default function ProductDetailPage({ params }) {
   const [currencies, setCurrencies] = useState([]);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-  function load() {
-    const p = productRepository.getById(id);
+  async function load() {
+    const p = await productRepository.getById(id);
     if (!p) { router.push('/products'); return; }
     setProduct(p);
     setForm(p);
@@ -437,8 +438,8 @@ export default function ProductDetailPage({ params }) {
                     <Input label="SKU" value={form.sku || ''} error={errors.sku} onChange={(e) => set('sku', e.target.value)} />
                     <Select label="Season" value={form.season} error={errors.season} onChange={(e) => set('season', e.target.value)}>
                       <option value="">Select season</option>
-                      <option value="fall / winter">Fall / Winter</option>
-                      <option value="spring / summer">Spring / Summer</option>
+                      <option value="fall_winter">Fall / Winter</option>
+                      <option value="spring_summer">Spring / Summer</option>
                     </Select>
                     <Select label="Category" value={form.category || ''} onChange={(e) => set('category', e.target.value)}>
                       {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}

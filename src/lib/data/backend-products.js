@@ -1,6 +1,6 @@
 import { apiRequest } from './aws-storage.js';
 
-export const productRepository2 = {
+export const productRepository = {
     async getAll() {
         return await apiRequest('products', 'get');
     },

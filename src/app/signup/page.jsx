@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { registerUser, getUser } from '@/lib/auth';
 import { Input, Button } from '@/components/ui';
+import { userRepository } from '@/lib/data/backend-users.js';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -54,33 +55,64 @@ export default function SignUpPage() {
     return errs;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setFormError('');
 
     const errs = validate();
     setErrors(errs);
+
     if (Object.keys(errs).length > 0) return;
 
     setLoading(true);
 
-    // Simulate async so the flow is easy to swap for a real API call
-    setTimeout(() => {
-      const result = registerUser({
+    try {
+      // Get existing users
+      const users = await userRepository.getAll();
+
+      const usernameExists = users.some(
+        (user) =>
+          user.username?.toLowerCase() ===
+          fields.username.trim().toLowerCase()
+      );
+
+      if (usernameExists) {
+        setFormError('Username is already taken.');
+        return;
+      }
+
+      const emailExists = users.some(
+        (user) =>
+          user.email?.toLowerCase() ===
+          fields.email.trim().toLowerCase()
+      );
+
+      if (emailExists) {
+        setFormError('An account with this email already exists.');
+        return;
+      }
+
+      // Create account
+      await userRepository.create({
+        org_id: 'dfd05209-13f2-54ca-879a-085dd2bde69d',
         name: fields.name.trim(),
         username: fields.username.trim(),
         email: fields.email.trim(),
-        password: fields.password,
+        password: fields.password
       });
 
-      if (result.ok) {
-        setSuccess(true);
-      } else {
-        setFormError(result.error);
-      }
+      setSuccess(true);
 
+    } catch (err) {
+      console.error(err);
+
+      setFormError(
+        err.message || 'Failed to create account.'
+      );
+
+    } finally {
       setLoading(false);
-    }, 0);
+    }
   }
 
   if (success) {
