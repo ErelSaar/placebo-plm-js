@@ -17,7 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
 import { recordRepository } from '@/lib/data/action-record';
 import { getItems } from '@/lib/data/storage';
-import { apiRequest } from '@/lib/data/aws-storage';
+import { loadCurrencies } from '@/lib/data/currency';
 
 export default function MaterialDetailPage({ params }) {
   const { id } = use(params);
@@ -80,16 +80,10 @@ export default function MaterialDetailPage({ params }) {
   }
 
   useEffect(() => {
-    const testCurrency = async () => {
-      try {
-        const data = await apiRequest("currencies", "get");
-        setCurrencies(data);
-      } catch (error) {
-        console.error("Failed to retrieve currencies:", error);
-      }
-    };
-    testCurrency();
     load();
+    loadCurrencies()
+      .then(setCurrencies)
+      .catch((err) => console.error("Failed to load currencies:", err));
   }, [id]);
 
   const permission = getPermission('material');
