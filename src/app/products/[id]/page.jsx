@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   PageHeader, Button, StatusBadge, Card, Section, Input, Textarea, Select,
   Modal, Warning, Tabs, Table, Thead, Tbody, Th, Td, Tr, EmptyState,
@@ -29,6 +29,7 @@ const TABS = [
 export default function ProductDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [product, setProduct] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -39,6 +40,7 @@ export default function ProductDetailPage({ params }) {
   const [orders, setOrders] = useState([]);
   const [orderLines, setOrderLines] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [bomModal, setBomModal] = useState(false);
   const [editBomLine, setEditBomLine] = useState(null);
   const [bomForm, setBomForm] = useState({ material_id: '', quantity_per_unit: '', notes: '' });
@@ -69,7 +71,12 @@ export default function ProductDetailPage({ params }) {
     initializePermission();
   }
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load();
+    if (searchParams.get('edit') === '1') {
+      setEditing(true);
+    }
+  }, [id]);
 
   const permission = getPermission('product');
 
@@ -129,6 +136,52 @@ export default function ProductDetailPage({ params }) {
     router.push('/products');
   }
 
+  function handleDuplicate() {
+    const newId = uuidv4();
+    const sourceBomLines = bomRepository.getByProduct(id);
+
+    const newProduct = productRepository.create({
+      id: newId,
+      name: `${product.name} Copy`,
+      style_code: `${product.style_code} Copy`,
+      sku: `${product.sku} Copy`,
+      description: product.description || '',
+      season: product.season || '',
+      category: product.category || 'outerwear',
+      status: 'draft',
+      images: [],
+      colors: product.colors ? [...product.colors] : [],
+      sizes: product.sizes ? [...product.sizes] : [],
+      selling_price: product.selling_price,
+      currency: product.currency || 'EUR',
+      notes: product.notes || '',
+      pricing_multiplier: product.pricing_multiplier ?? 3.5,
+    });
+
+    sourceBomLines.forEach((line) => {
+      bomRepository.create({
+        id: uuidv4(),
+        product_id: newId,
+        material_id: line.material_id,
+        quantity_per_unit: line.quantity_per_unit,
+        notes: line.notes || '',
+        sort_order: line.sort_order,
+      });
+    });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'product',
+      entity_id: newId,
+      before: null,
+      after: newProduct,
+    });
+
+    setConfirmDuplicate(false);
+    router.push(`/products/${newId}?edit=1`);
+  }
+
   function handleMultiplierChange(val) {
     const num = parseFloat(val);
     if (!isNaN(num) && num > 0) {
@@ -152,6 +205,7 @@ export default function ProductDetailPage({ params }) {
 
   function validate() {
     const errs = {};
+    const all = productRepository.getAll();
 
     if (!form.name?.trim()) {
       errs.name = 'Name is required';
@@ -167,6 +221,18 @@ export default function ProductDetailPage({ params }) {
       Number(form.selling_price) <= 0
     ) {
       errs.selling_price = 'Selling price must be greater than 0';
+    }
+
+    if (!form.style_code?.trim()) {
+      errs.style_code = 'Style code is required';
+    } else if (all.some((p) => p.id !== id && p.style_code === form.style_code)) {
+      errs.style_code = 'Style code must be unique';
+    }
+
+    if (!form.sku?.trim()) {
+      errs.sku = 'SKU is required';
+    } else if (all.some((p) => p.id !== id && p.sku === form.sku)) {
+      errs.sku = 'SKU must be unique';
     }
 
     return errs;
@@ -272,6 +338,13 @@ export default function ProductDetailPage({ params }) {
                   onClick={() => setEditing(true)}
                 >
                   Edit
+                </Button>
+
+                <Button
+                  disabled={permission === 0}
+                  onClick={() => setConfirmDuplicate(true)}
+                >
+                  Duplicate Product
                 </Button>
 
                 {permission === 0 ? (
@@ -586,6 +659,22 @@ export default function ProductDetailPage({ params }) {
       >
         <p className="text-[13px]">
           Are you sure you want to delete <strong>{product.name}</strong>? The product will be moved to Spam and can be restored by an Owner.
+        </p>
+      </Modal>
+
+      {/* Duplicate Confirm */}
+      <Modal
+        open={confirmDuplicate}
+        onClose={() => setConfirmDuplicate(false)}
+        title="Duplicate Product"
+        size="sm"
+        footer={<>
+          <Button onClick={() => setConfirmDuplicate(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleDuplicate}>Duplicate Product</Button>
+        </>}
+      >
+        <p className="text-[13px]">
+          Duplicate <strong>{product.name}</strong>? A new product will be created with all product information and BOM lines copied. You can edit the details before saving.
         </p>
       </Modal>
     </div>
