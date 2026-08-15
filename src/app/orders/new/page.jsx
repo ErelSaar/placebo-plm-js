@@ -60,14 +60,59 @@ export default function NewOrderPage() {
       quantity: 1,
     };
     setLines((prev) => [...prev, newLine]);
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'order_line',
+      entity_id: newLine.id,
+      before: null,
+      after: newLine,
+    });
   }
 
   function updateLine(lineId, field, value) {
-    setLines((prev) => prev.map((l) => l.id === lineId ? { ...l, [field]: value } : l));
+    setLines((prev) => {
+      const oldLine = prev.find((l) => l.id === lineId);
+      if (!oldLine) return prev;
+
+      const updatedLine = {
+        ...oldLine,
+        [field]: value,
+      };
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'UPDATE',
+        entity_type: 'order_line',
+        entity_id: lineId,
+        before: oldLine,
+        after: updatedLine,
+      });
+
+      return prev.map((l) =>
+        l.id === lineId ? updatedLine : l
+      );
+    });
   }
 
+
   function removeLine(lineId) {
-    setLines((prev) => prev.filter((l) => l.id !== lineId));
+    setLines((prev) => {
+      const removedLine = prev.find((l) => l.id === lineId);
+      if (!removedLine) return prev;
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'DELETE',
+        entity_type: 'order_line',
+        entity_id: lineId,
+        before: removedLine,
+        after: null,
+      });
+
+      return prev.filter((l) => l.id !== lineId);
+    });
   }
 
   function hasDuplicate() {

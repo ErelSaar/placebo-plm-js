@@ -183,7 +183,26 @@ export default function OrderDetailPage({ params }) {
   // ─── Status ───────────────────────────────────────────────────────────────
 
   function handleStatusChange(status) {
+    const oldOrder = orderRepository.getById(id);
+
+    if (!oldOrder) return;
+
+    const updatedOrder = {
+      ...oldOrder,
+      status,
+    };
+
     orderRepository.update(id, { status });
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'UPDATE',
+      entity_type: 'order',
+      entity_id: id,
+      before: oldOrder,
+      after: updatedOrder,
+    });
+
     load();
   }
 
@@ -221,30 +240,86 @@ export default function OrderDetailPage({ params }) {
   }
 
   function addAdditionalCost() {
+    const newCost = {
+      id: uuidv4(),
+      name: '',
+      cost_type: 'fixed',
+      amount: '',
+      notes: '',
+    };
+
     setCostsForm((prev) => ({
       ...prev,
       additional_costs: [
         ...prev.additional_costs,
-        { id: uuidv4(), name: '', cost_type: 'fixed', amount: '', notes: '' },
+        newCost,
       ],
     }));
+
+    recordRepository.create({
+      user_id: currentUser.id,
+      action: 'CREATE',
+      entity_type: 'order_additional_cost',
+      entity_id: newCost.id,
+      before: null,
+      after: newCost,
+    });
   }
 
   function updateAdditionalCost(index, field, value) {
     setCostsForm((prev) => {
+      const oldCost = prev.additional_costs[index];
+
+      if (!oldCost) return prev;
+
+      const updatedCost = {
+        ...oldCost,
+        [field]: value,
+      };
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'UPDATE',
+        entity_type: 'order_additional_cost',
+        entity_id: oldCost.id,
+        before: oldCost,
+        after: updatedCost,
+      });
+
       const costs = [...prev.additional_costs];
-      costs[index] = { ...costs[index], [field]: value };
-      return { ...prev, additional_costs: costs };
+      costs[index] = updatedCost;
+
+      return {
+        ...prev,
+        additional_costs: costs,
+      };
     });
   }
 
   function removeAdditionalCost(index) {
-    setCostsForm((prev) => ({
-      ...prev,
-      additional_costs: prev.additional_costs.filter((_, i) => i !== index),
-    }));
-  }
+    setCostsForm((prev) => {
+      const removedCost = prev.additional_costs[index];
 
+      if (!removedCost) return prev;
+
+      recordRepository.create({
+        user_id: currentUser.id,
+        action: 'DELETE',
+        entity_type: 'order_additional_cost',
+        entity_id: removedCost.id,
+        before: removedCost,
+        after: null,
+      });
+
+      return {
+        ...prev,
+        additional_costs: prev.additional_costs.filter(
+          (_, i) => i !== index
+        ),
+      };
+    });
+  }
+  
   function setCosts(field, value) {
     setCostsForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -448,8 +523,8 @@ export default function OrderDetailPage({ params }) {
               <Input label="Order Name" value={metaForm.order_name || ''} error={errors.order_name} onChange={(e) => setMeta('order_name', e.target.value)} />
               <Select label="Season" value={metaForm.season || ''} error={errors.season} onChange={(e) => setMeta('season', e.target.value)}>
                 <option value="">Select season</option>
-            <option value="fall / winter">Fall / Winter</option>
-            <option value="spring / summer">Spring / Summer</option>
+                <option value="fall / winter">Fall / Winter</option>
+                <option value="spring / summer">Spring / Summer</option>
               </Select>
               <Input label="Currency" value={metaForm.order_currency || ''} error={errors.order_currency} onChange={(e) => setMeta('order_currency', e.target.value)} />
               <Input label="Order Date" type="date" value={metaForm.order_date || ''} error={errors.order_date} onChange={(e) => setMeta('order_date', e.target.value)} />
