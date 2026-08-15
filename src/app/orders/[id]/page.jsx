@@ -25,6 +25,13 @@ import { initializePermission, getPermission } from "../../../lib/permissions";
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
+import {
+  getRate,
+  convertCurrency,
+  roundForDisplay,
+  buildCurrencyList,
+  sessionCurrencyKey,
+} from '@/lib/currency';
 
 const TABS = [
   { id: 'products', label: 'Products' },
@@ -54,6 +61,8 @@ export default function OrderDetailPage({ params }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [allProductsList, setAllProductsList] = useState([]);
   const [errors, setErrors] = useState({});
+  // Session-level display currency (not persisted to order, not audited)
+  const [displayCurrency, setDisplayCurrency] = useState(null);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   function load() {
@@ -86,6 +95,17 @@ export default function OrderDetailPage({ params }) {
     const allBOM = bomRepository.getAll();
     setBomLines(allBOM);
     initializePermission();
+
+    // Restore session display currency preference (only on first load; don't
+    // override if user has already picked a currency in this session).
+    setDisplayCurrency((prev) => {
+      if (prev !== null) return prev;
+      const stored =
+        typeof window !== 'undefined'
+          ? sessionStorage.getItem(sessionCurrencyKey(id))
+          : null;
+      return stored || o.order_currency;
+    });
   }
 
   useEffect(() => { load(); }, [id]);
@@ -111,6 +131,43 @@ export default function OrderDetailPage({ params }) {
   const productMap = new Map(products.map((p) => [p.id, p]));
   const totalUnits = orderLines.reduce((acc, l) => acc + l.quantity, 0);
   const pricingMultiplier = 3.5; // use product-level multiplier in exports, 3.5 as default for display
+
+  // ─── Currency display ─────────────────────────────────────────────────────
+  // All calculations remain in the order's native order_currency.
+  // fmtMoney converts only for presentation; never mutates stored values.
+
+  const effectiveDisplayCurrency = displayCurrency ?? order.order_currency;
+  const isConverting = effectiveDisplayCurrency !== order.order_currency;
+  const fxRate = isConverting ? getRate(order.order_currency, effectiveDisplayCurrency) : null;
+  const currencyList = buildCurrencyList(order.order_currency);
+
+  /**
+   * Format a monetary amount for display in the current display currency.
+   * If no FX rate is available, falls back to the native order currency.
+   * Never shows a converted currency symbol on an unconverted value.
+   */
+  function fmtMoney(amount) {
+    if (amount == null || isNaN(amount)) return '—';
+    if (!isConverting) return formatCurrency(amount, order.order_currency);
+    if (!fxRate) return formatCurrency(amount, order.order_currency); // no rate → native
+    const converted = convertCurrency(amount, order.order_currency, effectiveDisplayCurrency, fxRate.rate);
+    if (converted === null) return formatCurrency(amount, order.order_currency);
+    // Round to 2dp only at this display point
+    return formatCurrency(roundForDisplay(converted), effectiveDisplayCurrency);
+  }
+
+  /**
+   * Change the session-level display currency.
+   * Does NOT patch the order, does NOT write to localStorage, does NOT audit.
+   */
+  function handleDisplayCurrencyChange(currency) {
+    setDisplayCurrency(currency);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(sessionCurrencyKey(id), currency);
+    }
+  }
+
+  // ─── Validation ───────────────────────────────────────────────────────────
 
   function validate() {
     const errs = {};
@@ -429,6 +486,7 @@ export default function OrderDetailPage({ params }) {
   }
 
   // ─── Exports ──────────────────────────────────────────────────────────────
+  // Exports always use the order's native order_currency — not the display currency.
 
   function handleExportExcel() {
     exportOrderToExcel({
@@ -553,6 +611,34 @@ export default function OrderDetailPage({ params }) {
         <Tabs tabs={TABS} active={activeTab} onChange={setActiveTab} />
       </div>
 
+      {/* ── Currency display bar ───────────────────────────────────────────────
+          One order-level selector; applies across all four tabs.
+          Changing this does NOT patch the order or write to audit log. */}
+      <div className="px-8 py-2 flex items-center justify-between border-b border-[#f0f0f0] bg-[#fafafa]">
+        <CurrencyRateInfo
+          orderCurrency={order.order_currency}
+          displayCurrency={effectiveDisplayCurrency}
+          fxRate={fxRate}
+          isConverting={isConverting}
+        />
+        <CurrencySelector
+          currencyList={currencyList}
+          value={effectiveDisplayCurrency}
+          orderCurrency={order.order_currency}
+          onChange={handleDisplayCurrencyChange}
+          isConverting={isConverting}
+        />
+      </div>
+
+      {/* Missing rate warning — stays in native currency, never shows wrong symbol */}
+      {isConverting && !fxRate && (
+        <div className="px-8 pt-3">
+          <Warning>
+            No exchange rate is available for {effectiveDisplayCurrency}. Values are shown in the order currency ({order.order_currency}).
+          </Warning>
+        </div>
+      )}
+
       <div className="px-8 py-6">
 
         {/* Products Tab */}
@@ -589,8 +675,8 @@ export default function OrderDetailPage({ params }) {
                         <Td>{line.color}</Td>
                         <Td>{line.size}</Td>
                         <Td>{line.quantity}</Td>
-                        <Td>{formatCurrency(costs.totalUnitCost)}</Td>
-                        <Td>{formatCurrency(costs.rsp)}</Td>
+                        <Td>{fmtMoney(costs.totalUnitCost)}</Td>
+                        <Td>{fmtMoney(costs.rsp)}</Td>
                         <Td>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => openEditLine(line)} disabled={permission === 0} className="disabled:cursor-not-allowed disabled:opacity-40">Edit</Button>
@@ -641,12 +727,12 @@ export default function OrderDetailPage({ params }) {
                       <Td>{rm.material.supplier?.name ?? <span className="text-amber-600">—</span>}</Td>
                       <Td>{rm.total_quantity}</Td>
                       <Td>{rm.material.unit_of_measurement}</Td>
-                      <Td>{rm.unit_cost != null ? formatCurrency(rm.unit_cost) : '—'}</Td>
-                      <Td>{rm.estimated_cost != null ? formatCurrency(rm.estimated_cost) : '—'}</Td>
-                      <Td>{rm.allocated_shipping != null ? formatCurrency(rm.allocated_shipping) : '—'}</Td>
-                      <Td>{rm.allocated_customs != null ? formatCurrency(rm.allocated_customs) : '—'}</Td>
-                      <Td>{rm.allocated_additional != null ? formatCurrency(rm.allocated_additional) : '—'}</Td>
-                      <Td className="font-medium">{rm.total_landed_cost != null ? formatCurrency(rm.total_landed_cost) : '—'}</Td>
+                      <Td>{rm.unit_cost != null ? fmtMoney(rm.unit_cost) : '—'}</Td>
+                      <Td>{rm.estimated_cost != null ? fmtMoney(rm.estimated_cost) : '—'}</Td>
+                      <Td>{rm.allocated_shipping != null ? fmtMoney(rm.allocated_shipping) : '—'}</Td>
+                      <Td>{rm.allocated_customs != null ? fmtMoney(rm.allocated_customs) : '—'}</Td>
+                      <Td>{rm.allocated_additional != null ? fmtMoney(rm.allocated_additional) : '—'}</Td>
+                      <Td className="font-medium">{rm.total_landed_cost != null ? fmtMoney(rm.total_landed_cost) : '—'}</Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -674,7 +760,7 @@ export default function OrderDetailPage({ params }) {
                       </div>
                       <div className="text-right">
                         <p className="text-[12px] text-[#737373]">Total Landed Cost</p>
-                        <p className="text-[18px] font-semibold">{group.total_landed_cost != null ? formatCurrency(group.total_landed_cost) : '—'}</p>
+                        <p className="text-[18px] font-semibold">{group.total_landed_cost != null ? fmtMoney(group.total_landed_cost) : '—'}</p>
                       </div>
                     </div>
                     <Table>
@@ -698,20 +784,20 @@ export default function OrderDetailPage({ params }) {
                             <Td>{rm.material.category}</Td>
                             <Td>{rm.total_quantity}</Td>
                             <Td>{rm.material.unit_of_measurement}</Td>
-                            <Td>{rm.estimated_cost != null ? formatCurrency(rm.estimated_cost) : '—'}</Td>
-                            <Td>{formatCurrency(rm.allocated_shipping ?? 0)}</Td>
-                            <Td>{formatCurrency(rm.allocated_customs ?? 0)}</Td>
-                            <Td>{formatCurrency(rm.allocated_additional ?? 0)}</Td>
-                            <Td className="font-medium">{rm.total_landed_cost != null ? formatCurrency(rm.total_landed_cost) : '—'}</Td>
+                            <Td>{rm.estimated_cost != null ? fmtMoney(rm.estimated_cost) : '—'}</Td>
+                            <Td>{fmtMoney(rm.allocated_shipping ?? 0)}</Td>
+                            <Td>{fmtMoney(rm.allocated_customs ?? 0)}</Td>
+                            <Td>{fmtMoney(rm.allocated_additional ?? 0)}</Td>
+                            <Td className="font-medium">{rm.total_landed_cost != null ? fmtMoney(rm.total_landed_cost) : '—'}</Td>
                           </Tr>
                         ))}
                       </Tbody>
                     </Table>
                     <div className="flex justify-end gap-6 mt-3 pt-3 border-t border-[#f0f0f0] text-[13px]">
-                      <span>Materials: <strong>{formatCurrency(group.total_estimated_cost)}</strong></span>
-                      <span>Shipping: <strong>{formatCurrency(group.total_shipping)}</strong></span>
-                      <span>Customs: <strong>{formatCurrency(group.total_customs)}</strong></span>
-                      <span>Additional: <strong>{formatCurrency(group.total_additional)}</strong></span>
+                      <span>Materials: <strong>{fmtMoney(group.total_estimated_cost)}</strong></span>
+                      <span>Shipping: <strong>{fmtMoney(group.total_shipping)}</strong></span>
+                      <span>Customs: <strong>{fmtMoney(group.total_customs)}</strong></span>
+                      <span>Additional: <strong>{fmtMoney(group.total_additional)}</strong></span>
                     </div>
                   </Card>
                 ))}
@@ -727,19 +813,25 @@ export default function OrderDetailPage({ params }) {
             <Card className="p-6">
               <Section title="Order Cost Summary">
                 <div className="space-y-2">
-                  <CostRow label="Materials" value={costSummary.total_materials_cost} />
-                  <CostRow label="Labor (Sewing)" value={costSummary.total_labor_cost} />
-                  <CostRow label="Shipping" value={costSummary.total_shipping_cost} />
-                  <CostRow label="Customs" value={costSummary.total_customs_cost} />
-                  <CostRow label="Additional Costs" value={costSummary.total_additional_cost} />
+                  <CostRow label="Materials" value={costSummary.total_materials_cost} fmtMoney={fmtMoney} />
+                  <CostRow label="Labor (Sewing)" value={costSummary.total_labor_cost} fmtMoney={fmtMoney} />
+                  <CostRow label="Shipping" value={costSummary.total_shipping_cost} fmtMoney={fmtMoney} />
+                  <CostRow label="Customs" value={costSummary.total_customs_cost} fmtMoney={fmtMoney} />
+                  <CostRow label="Additional Costs" value={costSummary.total_additional_cost} fmtMoney={fmtMoney} />
                   <div className="border-t border-[#e5e5e5] pt-2">
-                    <CostRow label="Total Landed Cost" value={costSummary.total_landed_cost} bold />
+                    {/* Total is converted from the native total — not summed from converted rows */}
+                    <CostRow label="Total Landed Cost" value={costSummary.total_landed_cost} bold fmtMoney={fmtMoney} />
                   </div>
                   <div className="mt-4 pt-3 border-t border-[#e5e5e5] space-y-2">
-                    <CostRow label="Total Units" value={null} text={String(costSummary.total_units)} />
-                    <CostRow label="Average Cost / Unit" value={costSummary.average_cost_per_unit} bold />
-                    <CostRow label={`Avg. RSP (×${pricingMultiplier})`} value={costSummary.average_cost_per_unit * pricingMultiplier} />
+                    <CostRow label="Total Units" value={null} text={String(costSummary.total_units)} fmtMoney={fmtMoney} />
+                    <CostRow label="Average Cost / Unit" value={costSummary.average_cost_per_unit} bold fmtMoney={fmtMoney} />
+                    <CostRow label={`Avg. RSP (×${pricingMultiplier})`} value={costSummary.average_cost_per_unit * pricingMultiplier} fmtMoney={fmtMoney} />
                   </div>
+                  {isConverting && fxRate && (
+                    <p className="text-[11px] text-[#a3a3a3] pt-1">
+                      Converted totals are calculated from the native order total. Rounded line values may not sum exactly.
+                    </p>
+                  )}
                 </div>
               </Section>
             </Card>
@@ -770,11 +862,11 @@ export default function OrderDetailPage({ params }) {
                           <Tr key={line.id}>
                             <Td className="font-medium text-[12px]">{product?.name ?? '—'}</Td>
                             <Td className="text-[12px]">{line.color}</Td>
-                            <Td className="text-[12px]">{formatCurrency(costs.materialCostPerUnit)}</Td>
-                            <Td className="text-[12px]">{formatCurrency(costs.laborCostPerUnit)}</Td>
-                            <Td className="text-[12px]">{formatCurrency(costs.logisticsPerUnit)}</Td>
-                            <Td className="text-[12px] font-semibold">{formatCurrency(costs.totalUnitCost)}</Td>
-                            <Td className="text-[12px]">{formatCurrency(costs.rsp)}</Td>
+                            <Td className="text-[12px]">{fmtMoney(costs.materialCostPerUnit)}</Td>
+                            <Td className="text-[12px]">{fmtMoney(costs.laborCostPerUnit)}</Td>
+                            <Td className="text-[12px]">{fmtMoney(costs.logisticsPerUnit)}</Td>
+                            <Td className="text-[12px] font-semibold">{fmtMoney(costs.totalUnitCost)}</Td>
+                            <Td className="text-[12px]">{fmtMoney(costs.rsp)}</Td>
                           </Tr>
                         );
                       })}
@@ -787,7 +879,9 @@ export default function OrderDetailPage({ params }) {
         )}
       </div>
 
-      {/* Costs Modal */}
+      {/* Costs Modal
+          Editable inputs always use the native order_currency.
+          Changing display currency does not affect these values. */}
       <Modal
         open={costsModal}
         onClose={() => setCostsModal(false)}
@@ -799,6 +893,11 @@ export default function OrderDetailPage({ params }) {
         </>}
       >
         <div className="space-y-6">
+          {/* Native currency notice */}
+          <div className="text-[12px] text-[#737373] bg-[#f9f9f9] border border-[#e5e5e5] rounded px-3 py-2">
+            Costs are entered in the order currency: <strong>{order.order_currency}</strong>
+          </div>
+
           {/* Shipping */}
           <Section title="Shipping">
             <div className="grid grid-cols-2 gap-4">
@@ -949,13 +1048,62 @@ export default function OrderDetailPage({ params }) {
   );
 }
 
-function CostRow({ label, value, bold, text }) {
+// ─── CostRow ──────────────────────────────────────────────────────────────────
+
+function CostRow({ label, value, bold, text, fmtMoney: fmt }) {
   return (
     <div className={`flex items-center justify-between py-1`}>
       <span className={`text-[13px] ${bold ? 'font-semibold' : ''}`}>{label}</span>
       <span className={`text-[13px] font-mono ${bold ? 'font-semibold' : ''}`}>
-        {text !== undefined ? text : (value != null ? formatCurrency(value) : '—')}
+        {text !== undefined ? text : (value != null ? (fmt ? fmt(value) : formatCurrency(value)) : '—')}
       </span>
+    </div>
+  );
+}
+
+// ─── CurrencySelector ─────────────────────────────────────────────────────────
+
+function CurrencySelector({ currencyList, value, orderCurrency, onChange, isConverting }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[12px] text-[#737373]">Display currency:</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border border-[#e5e5e5] rounded px-2 py-1 text-[13px] bg-white focus:outline-none focus:ring-1 focus:ring-[#0a0a0a] focus:border-[#0a0a0a]"
+        title={`Values are shown for display only. Order costing remains in ${orderCurrency}.`}
+      >
+        {currencyList.map((c) => (
+          <option key={c} value={c}>
+            {c === orderCurrency ? `${c} — Order currency` : c}
+          </option>
+        ))}
+      </select>
+      {isConverting && <Badge variant="warning">Indicative</Badge>}
+    </div>
+  );
+}
+
+// ─── CurrencyRateInfo ─────────────────────────────────────────────────────────
+
+function CurrencyRateInfo({ orderCurrency, displayCurrency, fxRate, isConverting }) {
+  if (!isConverting || !fxRate) return <div />;
+
+  const rateDate = fxRate.rate_date
+    ? new Date(fxRate.rate_date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : null;
+
+  return (
+    <div className="flex items-center gap-2 text-[12px] text-[#737373]">
+      <span>
+        1 {orderCurrency} = {fxRate.rate} {displayCurrency}
+      </span>
+      {rateDate && <span>· Rate: {rateDate}</span>}
+      {fxRate.source && <span>· {fxRate.source}</span>}
     </div>
   );
 }
