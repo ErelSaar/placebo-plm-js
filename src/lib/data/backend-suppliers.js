@@ -38,6 +38,15 @@ export const supplierRepository = {
         );
     },
 
+    async softDelete(id) {
+        const supplier = await this.getById(id);
+
+        return await this.update(id, {
+            ...supplier,
+            spam: true
+        });
+    },
+
     async delete(id) {
         return await apiRequest(
             'suppliers',
