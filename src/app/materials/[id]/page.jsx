@@ -164,7 +164,7 @@ export default function MaterialDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'material',
       entity_id: id,
       before,
@@ -194,7 +194,7 @@ export default function MaterialDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: newStatus === 'archived' ? 'ARCHIVE' : 'RESTORE',
+      action: newStatus === 'archived' ? 'archive' : 'restore',
       entity_type: 'material',
       entity_id: id,
       before: oldMaterial,
@@ -220,7 +220,7 @@ export default function MaterialDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'CREATE DUPLICATE',
+      action: 'create DUPLICATE',
       entity_type: 'material',
       entity_id: newId,
       before: null,
@@ -235,7 +235,7 @@ export default function MaterialDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'DELETE',
+      action: 'delete',
       entity_type: 'Material',
       entity_id: id,
       before: material,

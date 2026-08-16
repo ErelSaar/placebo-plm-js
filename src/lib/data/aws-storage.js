@@ -360,17 +360,21 @@ export const apiRequest = async (
 
     if (
         dataType === 'materials' &&
-        (command === 'get' || command === 'update')
+        command === 'update'
     ) {
         if (id == null) {
-            throw new Error(`ID is required for material ${command}`);
-        }
-
-        if (command === 'get') {
-            return await getMaterial(id);
+            throw new Error(`ID is required for material update`);
         }
 
         return await updateMaterial(id, body);
+    }
+
+    if (
+        dataType === 'materials' &&
+        command === 'get' &&
+        id != null
+    ) {
+        return await getMaterial(id);
     }
 
 
@@ -459,6 +463,40 @@ export const apiRequest = async (
                         params.append(
                             'status',
                             filters.status
+                        );
+                    }
+                }
+
+                // =========================
+                // BOM LINE FILTERS
+                // =========================
+
+                if (dataType === 'bom_lines') {
+                    if (filters.product_id) {
+                        params.append(
+                            'product_id',
+                            filters.product_id
+                        );
+                    }
+
+                    if (filters.material_id) {
+                        params.append(
+                            'material_id',
+                            filters.material_id
+                        );
+                    }
+
+                    if (filters.material) {
+                        params.append(
+                            'material',
+                            filters.material
+                        );
+                    }
+
+                    if (filters.supplier) {
+                        params.append(
+                            'supplier',
+                            filters.supplier
                         );
                     }
                 }
@@ -555,7 +593,6 @@ export const apiRequest = async (
     if (body !== null && method !== 'GET') {
         options.body = JSON.stringify(body);
     }
-
 
     return await handleResponse(
         await fetch(url, options)

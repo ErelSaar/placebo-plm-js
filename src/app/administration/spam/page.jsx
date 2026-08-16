@@ -56,7 +56,7 @@ export default function SpamPage() {
 
     recordRepository.create({
       user_id: currentUser?.id,
-      action: 'RESTORE',
+      action: 'restore',
       entity_type: type,
       entity_id: id,
       before: null,
@@ -97,7 +97,7 @@ export default function SpamPage() {
 
     recordRepository.create({
       user_id: currentUser?.id,
-      action: 'HARD_DELETE',
+      action: 'HARD_delete',
       entity_type: type,
       entity_id: id,
       before: null,

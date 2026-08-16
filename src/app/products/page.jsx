@@ -59,8 +59,6 @@ export default function ProductsPage() {
 
   const permission = getPermission('products');
 
-  console.log(products)
-
   const filtered = products.filter((p) => {
     const q = search.toLowerCase();
     const matchSearch = !search ||

@@ -154,7 +154,7 @@ export default function SupplierDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'supplier',
       entity_id: id,
       before,
@@ -184,7 +184,7 @@ export default function SupplierDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: newStatus === 'archived' ? 'ARCHIVE' : 'RESTORE',
+      action: newStatus === 'archived' ? 'archive' : 'restore',
       entity_type: 'supplier',
       entity_id: id,
       before: oldSupplier,
@@ -199,7 +199,7 @@ export default function SupplierDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'DELETE',
+      action: 'delete',
       entity_type: 'Supplier',
       entity_id: id,
       before: supplier,

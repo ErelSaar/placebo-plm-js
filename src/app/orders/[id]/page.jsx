@@ -230,7 +230,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'order',
       entity_id: id,
       before,
@@ -261,7 +261,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'order',
       entity_id: id,
       before: oldOrder,
@@ -293,7 +293,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'order',
       entity_id: id,
       before,
@@ -323,7 +323,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'CREATE',
+      action: 'create',
       entity_type: 'order_additional_cost',
       entity_id: newCost.id,
       before: null,
@@ -344,7 +344,7 @@ export default function OrderDetailPage({ params }) {
 
       recordRepository.create({
         user_id: currentUser.id,
-        action: 'UPDATE',
+        action: 'update',
         entity_type: 'order_additional_cost',
         entity_id: oldCost.id,
         before: oldCost,
@@ -369,7 +369,7 @@ export default function OrderDetailPage({ params }) {
 
       recordRepository.create({
         user_id: currentUser.id,
-        action: 'DELETE',
+        action: 'delete',
         entity_type: 'order_additional_cost',
         entity_id: removedCost.id,
         before: removedCost,
@@ -446,7 +446,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: lineForm.isNew ? 'CREATE' : 'UPDATE',
+      action: lineForm.isNew ? 'create' : 'update',
       entity_type: 'order_line',
       entity_id: lineForm.id,
       before,
@@ -466,7 +466,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'DELETE',
+      action: 'delete',
       entity_type: 'order_line',
       entity_id: lineId,
       before,
@@ -483,7 +483,7 @@ export default function OrderDetailPage({ params }) {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'DELETE',
+      action: 'delete',
       entity_type: 'Order',
       entity_id: id,
       before: order,

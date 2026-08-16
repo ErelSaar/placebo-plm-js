@@ -17,6 +17,12 @@ export const productRepository = {
         return await apiRequest('products', 'update', id, data);
     },
 
+    async softDelete(id) {
+        return await apiRequest('products', 'update', id, {
+            spam: true
+        });
+    },
+
     async delete(id) {
         return await apiRequest('products', 'delete', id);
     }

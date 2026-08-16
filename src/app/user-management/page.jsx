@@ -85,7 +85,7 @@ export default function UserManagementPage() {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'user',
       entity_id: userId,
       before,

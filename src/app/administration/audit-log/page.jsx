@@ -21,17 +21,17 @@ const ACTION_OPTIONS = [
   { value: 'order created', label: 'Order Created' },
   { value: 'order updated', label: 'Order Updated' },
   { value: 'user role changed', label: 'User Role Changed' },
-  { value: 'RESTORE', label: 'Record Restored' },
-  { value: 'HARD_DELETE', label: 'Permanently Deleted' },
+  { value: 'restore', label: 'Record Restored' },
+  { value: 'HARD_delete', label: 'Permanently Deleted' },
 ];
 
 const ACTION_LABELS = {
-  CREATE: 'created',
+  create: 'created',
   EDIT: 'edited',
-  UPDATE: 'updated',
-  DELETE: 'deleted',
-  RESTORE: 'restored',
-  HARD_DELETE: 'permanently deleted',
+  update: 'updated',
+  delete: 'deleted',
+  restore: 'restored',
+  HARD_delete: 'permanently deleted',
 };
 
 const ENTITY_TYPE_OPTIONS = [
@@ -53,8 +53,8 @@ const ACTION_BADGE_VARIANT = {
   order_created: 'success',
   order_updated: 'warning',
   user_role_changed: 'muted',
-  RESTORE: 'success',
-  HARD_DELETE: 'danger',
+  restore: 'success',
+  HARD_delete: 'danger',
 };
 
 function formatActionLabel(action) {
@@ -129,11 +129,11 @@ export default function AuditLogPage() {
 
       let actionWord;
 
-      if (action === 'CREATE') {
+      if (action === 'create') {
         actionWord = 'created';
-      } else if (action === 'DELETE') {
+      } else if (action === 'delete') {
         actionWord = 'deleted';
-      } else if (action === 'UPDATE') {
+      } else if (action === 'update') {
       if (entityType === 'order') {
         actionWord = 'updated';
       } else if (entityType === 'user') {
@@ -141,10 +141,10 @@ export default function AuditLogPage() {
       } else {
         actionWord = 'edited';
       }
-    } else if (action === 'RESTORE') {
-      return actionFilter.toUpperCase() === 'RESTORE';
-    } else if (action === 'HARD_DELETE') {
-      return actionFilter.toUpperCase() === 'HARD_DELETE';
+    } else if (action === 'restore') {
+      return actionFilter.toUpperCase() === 'restore';
+    } else if (action === 'HARD_delete') {
+      return actionFilter.toUpperCase() === 'HARD_delete';
     } else {
       return false;
     }

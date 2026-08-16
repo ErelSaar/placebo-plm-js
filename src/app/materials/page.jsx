@@ -146,7 +146,7 @@ export default function MaterialsPage() {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'CREATE',
+      action: 'create',
       entity_type: 'material',
       entity_id: id,
       before: null,

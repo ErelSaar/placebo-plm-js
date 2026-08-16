@@ -68,7 +68,7 @@ export default function NewOrderPage() {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'CREATE',
+      action: 'create',
       entity_type: 'order_line',
       entity_id: newLine.id,
       before: null,
@@ -88,7 +88,7 @@ export default function NewOrderPage() {
 
       recordRepository.create({
         user_id: currentUser.id,
-        action: 'UPDATE',
+        action: 'update',
         entity_type: 'order_line',
         entity_id: lineId,
         before: oldLine,
@@ -109,7 +109,7 @@ export default function NewOrderPage() {
 
       recordRepository.create({
         user_id: currentUser.id,
-        action: 'DELETE',
+        action: 'delete',
         entity_type: 'order_line',
         entity_id: lineId,
         before: removedLine,
@@ -221,7 +221,7 @@ export default function NewOrderPage() {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'CREATE',
+      action: 'create',
       entity_type: 'order',
       entity_id: orderId,
       before: null,

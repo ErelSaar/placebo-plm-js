@@ -9,15 +9,16 @@ import {
 } from '@/components/ui';
 // import { productRepository } from '@/lib/data/products';
 import { productRepository } from '@/lib/data/backend-products.js';
-import { materialRepository } from '@/lib/data/materials';
+import { materialRepository } from '@/lib/data/backend-materials.js';
+import { bomLineRepository } from '@/lib/data/backend-bom_lines';
 import { supplierRepository } from '@/lib/data/suppliers';
-import { bomRepository } from '@/lib/data/bom';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateBOMCost, calculateProductCostSummary } from '@/lib/calculations';
 import { MATERIAL_CATEGORY_GROUPS, PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
 import { recordRepository } from '@/lib/data/action-record';
+import { auditRepository } from '@/lib/data/backend-audit.js';
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
 
@@ -58,11 +59,11 @@ export default function ProductDetailPage({ params }) {
     setForm(p);
     setMultiplier(p.pricing_multiplier ?? 3.5);
 
-    const allMaterials = materialRepository.getAll();
+    const allMaterials = await materialRepository.getAll();
     setMaterials(allMaterials);
     setSuppliers(supplierRepository.getAll());
 
-    const bom = bomRepository.getByProduct(id);
+    const bom = await bomLineRepository.getByProduct(id);
     setBomLines(bom);
 
     const allOrders = orderRepository.getAll();
@@ -92,16 +93,17 @@ export default function ProductDetailPage({ params }) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     const errs = validate();
+
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
 
-    const before = productRepository.getById(id);
+    const before = product;
 
-    const updatedProduct = productRepository.update(id, {
+    const updatedProduct = await productRepository.update(id, {
       ...form,
       selling_price:
         form.selling_price !== '' && form.selling_price != null
@@ -109,9 +111,10 @@ export default function ProductDetailPage({ params }) {
           : null,
     });
 
-    recordRepository.create({
+    await auditRepository.create({
+      org_id: currentUser.org_id,
       user_id: currentUser.id,
-      action: 'UPDATE',
+      action: 'update',
       entity_type: 'product',
       entity_id: id,
       before,
@@ -122,88 +125,117 @@ export default function ProductDetailPage({ params }) {
     load();
   }
 
-  function handleStatusChange(status) {
-    productRepository.update(id, { status });
+  async function handleStatusChange(status) {
+    const updatedProduct = {
+      ...product,
+      status,
+    };
+
+    await productRepository.update(id, { status });
+
+    await auditRepository.create({
+      org_id: currentUser.org_id,
+      user_id: currentUser.id,
+      action: 'update',
+      entity_type: 'product',
+      entity_id: id,
+      before: product,
+      after: updatedProduct,
+    });
+
     load();
   }
 
-  function handleDelete() {
-    productRepository.softDelete(id);
+  async function handleDelete() {
+    const before = await productRepository.getById(id);
 
-    recordRepository.create({
+    const after = await productRepository.softDelete(id);
+
+    await auditRepository.create({
+      org_id: currentUser.org_id,
       user_id: currentUser.id,
-      action: 'DELETE',
-      entity_type: 'Product',
+      action: 'update',
+      entity_type: 'product',
       entity_id: id,
-      before: product,
-      after: null,
+      before,
+      after,
     });
 
     router.push('/products');
   }
 
-  function handleDuplicate() {
-    const newId = uuidv4();
-    const sourceBomLines = bomRepository.getByProduct(id);
+  async function handleDuplicate() {
+    const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-    const newProduct = productRepository.create({
-      id: newId,
+    // Get the source BOM lines
+    const allBomLines = await bomLineRepository.getAll();
+
+    const sourceBomLines = allBomLines.filter(
+      (line) => line.product_id === id
+    );
+
+    // Create the duplicated product
+    const newProduct = await productRepository.create({
+      org_id: currentUser.org_id,
       name: `${product.name} Copy`,
       style_code: `${product.style_code} Copy`,
       sku: `${product.sku} Copy`,
-      description: product.description || '',
-      season: product.season || '',
       category: product.category || 'outerwear',
-      status: 'draft',
-      images: [],
+      season: product.season || '',
       colors: product.colors ? [...product.colors] : [],
       sizes: product.sizes ? [...product.sizes] : [],
+      pricing_multiplier: product.pricing_multiplier ?? 3.5,
       selling_price: product.selling_price,
       currency: product.currency || 'EUR',
       notes: product.notes || '',
-      pricing_multiplier: product.pricing_multiplier ?? 3.5,
+      status: 'draft',
     });
 
-    sourceBomLines.forEach((line) => {
-      const newBomLine = {
-        id: uuidv4(),
-        product_id: newId,
+    const newProductId = newProduct.id;
+
+    // Create audit for the duplicated product
+    await auditRepository.create({
+      org_id: currentUser.org_id,
+      user_id: currentUser.id,
+      action: 'create',
+      entity_type: 'product',
+      entity_id: newProductId,
+      before: null,
+      after: newProduct,
+    });
+
+    // Duplicate BOM lines
+    for (const line of sourceBomLines) {
+      const newBomLine = await bomLineRepository.create({
+        product_id: newProductId,
         material_id: line.material_id,
         quantity_per_unit: line.quantity_per_unit,
         notes: line.notes || '',
         sort_order: line.sort_order,
-      };
+      });
 
-      bomRepository.create(newBomLine);
-
-      recordRepository.create({
+      // Audit the new BOM line
+      await auditRepository.create({
+        org_id: currentUser.org_id,
         user_id: currentUser.id,
-        action: 'CREATE',
+        action: 'create',
         entity_type: 'bom_line',
         entity_id: newBomLine.id,
         before: null,
         after: newBomLine,
       });
-    });
-
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: 'CREATE',
-      entity_type: 'product',
-      entity_id: newId,
-      before: null,
-      after: newProduct,
-    });
+    }
 
     setConfirmDuplicate(false);
-    router.push(`/products/${newId}?edit=1`);
+
+    router.push(`/products/${newProductId}?edit=1`);
   }
 
-  function handleMultiplierChange(val) {
+  async function handleMultiplierChange(val) {
     const num = parseFloat(val);
 
     if (!isNaN(num) && num > 0) {
-      const oldProduct = productRepository.getById(id);
+      const oldProduct = await productRepository.getById(id);
 
       if (!oldProduct) return;
 
@@ -213,13 +245,15 @@ export default function ProductDetailPage({ params }) {
       };
 
       setMultiplier(num);
-      productRepository.update(id, {
+
+      await productRepository.update(id, {
         pricing_multiplier: num,
       });
 
-      recordRepository.create({
+      await auditRepository.create({
+        org_id: currentUser.org_id,
         user_id: currentUser.id,
-        action: 'UPDATE',
+        action: 'update',
         entity_type: 'product',
         entity_id: id,
         before: oldProduct,
@@ -241,9 +275,9 @@ export default function ProductDetailPage({ params }) {
     setBomModal(true);
   }
 
-  function validate() {
+  async function validate() {
     const errs = {};
-    const all = productRepository.getAll();
+    const all = await productRepository.getAll();
 
     if (!form.name?.trim()) {
       errs.name = 'Name is required';
@@ -263,50 +297,74 @@ export default function ProductDetailPage({ params }) {
 
     if (!form.style_code?.trim()) {
       errs.style_code = 'Style code is required';
-    } else if (all.some((p) => p.id !== id && p.style_code === form.style_code)) {
+    } else if (
+      all.some(
+        (p) => p.id !== id && p.style_code === form.style_code
+      )
+    ) {
       errs.style_code = 'Style code must be unique';
     }
 
     if (!form.sku?.trim()) {
       errs.sku = 'SKU is required';
-    } else if (all.some((p) => p.id !== id && p.sku === form.sku)) {
+    } else if (
+      all.some(
+        (p) => p.id !== id && p.sku === form.sku
+      )
+    ) {
       errs.sku = 'SKU must be unique';
     }
 
     return errs;
   }
 
-  function handleSaveBOM() {
-    if (!bomForm.material_id || bomForm.quantity_per_unit === '') return;
+  async function handleSaveBOM() {
+    if (!bomForm.material_id || bomForm.quantity_per_unit === '') {
+      return;
+    }
+
+    const currentUser = getItems(STORAGE_KEYS.logged_user);
+    const selectedMaterial = materials.find(
+      (m) => m.id === bomForm.material_id
+    );
 
     if (editBomLine) {
-      const updatedBom = bomRepository.update(editBomLine.id, {
-        material_id: bomForm.material_id,
-        quantity_per_unit: Number(bomForm.quantity_per_unit),
-        notes: bomForm.notes,
-      });
+      const updatedBom = await bomLineRepository.update(
+        editBomLine.id,
+        {
+          material_id: bomForm.material_id,
+          quantity_per_unit: Number(bomForm.quantity_per_unit),
+          unit_of_measure: selectedMaterial.unit_of_measure,
+          notes: bomForm.notes,
+          sort_order: editBomLine.sort_order,
+        }
+      );
 
-      recordRepository.create({
+      await auditRepository.create({
+        org_id: currentUser.org_id,
         user_id: currentUser.id,
-        action: 'UPDATE',
+        action: 'update',
         entity_type: 'bom_line',
         entity_id: editBomLine.id,
         before: editBomLine,
         after: updatedBom,
       });
     } else {
-      const bom = bomRepository.create({
-        id: uuidv4(),
+
+      const bom = await bomLineRepository.create({
+        org_id: currentUser.org_id,
         product_id: id,
         material_id: bomForm.material_id,
         quantity_per_unit: Number(bomForm.quantity_per_unit),
+        unit_of_measure: selectedMaterial.unit_of_measure,
         notes: bomForm.notes,
         sort_order: bomLines.length + 1,
       });
 
-      recordRepository.create({
+      await auditRepository.create({
+        org_id: currentUser.org_id,
         user_id: currentUser.id,
-        action: 'CREATE',
+        action: 'create',
         entity_type: 'bom_line',
         entity_id: bom.id,
         before: null,
@@ -318,9 +376,24 @@ export default function ProductDetailPage({ params }) {
     load();
   }
 
-  function handleDeleteBOM(lineId) {
-    bomRepository.remove(lineId);
-    load();
+  async function handleDeleteBOM(lineId) {
+    const before = bomLines.find(line => line.id === lineId);
+
+    if (!before) return;
+
+    await bomLineRepository.delete(lineId);
+
+    await auditRepository.create({
+      org_id: currentUser.org_id,
+      user_id: currentUser.id,
+      action: 'delete',
+      entity_type: 'bom_line',
+      entity_id: lineId,
+      before,
+      after: null,
+    });
+
+    await load();
   }
 
   // Costing

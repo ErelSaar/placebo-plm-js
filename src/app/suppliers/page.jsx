@@ -135,7 +135,7 @@ export default function SuppliersPage() {
 
     recordRepository.create({
       user_id: currentUser.id,
-      action: 'CREATE',
+      action: 'create',
       entity_type: 'supplier',
       entity_id: id,
       before: null,
