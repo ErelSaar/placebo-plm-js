@@ -94,7 +94,6 @@ export default function SignUpPage() {
 
       // Create account
       await userRepository.create({
-        org_id: 'dfd05209-13f2-54ca-879a-085dd2bde69d',
         name: fields.name.trim(),
         username: fields.username.trim(),
         email: fields.email.trim(),

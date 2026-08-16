@@ -214,7 +214,6 @@ export default function MaterialDetailPage({ params }) {
         });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'material',
@@ -250,7 +249,6 @@ export default function MaterialDetailPage({ params }) {
         });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action:
           newStatus === 'archived'
@@ -276,7 +274,6 @@ export default function MaterialDetailPage({ params }) {
       const newMaterial = {
         ...material,
         id: newId,
-        org_id: currentUser.org_id,
         name: `${material.name} (Copy)`,
       };
 
@@ -284,7 +281,6 @@ export default function MaterialDetailPage({ params }) {
         await materialRepository.create(newMaterial);
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'create',
         entity_type: 'material',
@@ -314,7 +310,6 @@ export default function MaterialDetailPage({ params }) {
     });
 
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'delete',
       entity_type: 'material',
