@@ -445,24 +445,17 @@ export const apiRequest = async (
 
                 if (dataType === 'suppliers') {
 
-                    if (filters.name) {
-                        params.append(
-                            'name',
-                            filters.name
-                        );
-                    }
-
-                    if (filters.country) {
-                        params.append(
-                            'country',
-                            filters.country
-                        );
-                    }
-
                     if (filters.status) {
                         params.append(
                             'status',
                             filters.status
+                        );
+                    }
+
+                    if (filters.search) {
+                        params.append(
+                            'search',
+                            filters.search
                         );
                     }
                 }

@@ -6,22 +6,23 @@ import {
   PageHeader, Button, StatusBadge, Card, Section, Input, Textarea, Select,
   Modal, Warning, formatCurrency,
 } from '@/components/ui';
-import { materialRepository } from '@/lib/data/materials';
-import { supplierRepository } from '@/lib/data/suppliers';
-import { productRepository } from '@/lib/data/products';
-import { bomRepository } from '@/lib/data/bom';
+import { materialRepository } from '@/lib/data/backend-materials';
+import { supplierRepository } from '@/lib/data/backend-suppliers';
+import { productRepository } from '@/lib/data/backend-products';
+import { bomLineRepository } from '@/lib/data/backend-bom_lines';
+import { auditRepository } from '@/lib/data/backend-audit';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
 import { calculateRequiredMaterials } from '@/lib/calculations';
 import { MATERIAL_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
-import { recordRepository } from '@/lib/data/action-record';
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
 
 export default function MaterialDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+
   const [material, setMaterial] = useState(null);
   const [suppliers, setSuppliers] = useState([]);
   const [editing, setEditing] = useState(false);
@@ -30,60 +31,112 @@ export default function MaterialDetailPage({ params }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [errors, setErrors] = useState({});
   const [currencies, setCurrencies] = useState([]);
+
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-  function load() {
-    const m = materialRepository.getById(id);
-    if (!m) { router.push('/materials'); return; }
-    setMaterial(m);
-    setForm(m);
-    setSuppliers(supplierRepository.getAll());
+  async function load() {
+    try {
+      const m = await materialRepository.getById(id);
 
-    // Used in products
-    const allBOM = bomRepository.getAll();
-    const bomForMat = allBOM.filter((b) => b.material_id === id);
-    const allProducts = productRepository.getAll();
-    const productMap = new Map(allProducts.map((p) => [p.id, p]));
-
-    // Calculate how much is required across active orders
-    const allOrders = orderRepository.getAll().filter((o) => o.status !== 'completed' && o.status !== 'cancelled');
-    const allOrderLines = orderLineRepository.getAll();
-    const allMaterials = materialRepository.getAll();
-    const allSuppliers = supplierRepository.getAll();
-
-    let totalRequired = 0;
-    if (allOrders.length > 0) {
-      const allActiveLines = allOrderLines.filter((l) =>
-        allOrders.some((o) => o.id === l.order_id)
-      );
-      if (allActiveLines.length > 0) {
-        const reqMats = calculateRequiredMaterials({
-          orderLines: allActiveLines,
-          products: allProducts,
-          bomLines: allBOM,
-          materials: allMaterials,
-          suppliers: allSuppliers,
-        });
-        const thisMatReq = reqMats.find((rm) => rm.material.id === id);
-        if (thisMatReq) totalRequired = thisMatReq.total_quantity;
+      if (!m) {
+        router.push('/materials');
+        return;
       }
+
+      setMaterial(m);
+      setForm(m);
+
+      const [
+        allSuppliers,
+        allBOM,
+        allProducts,
+        allOrders,
+        allOrderLines,
+        allMaterials,
+      ] = await Promise.all([
+        supplierRepository.getAll(),
+        bomLineRepository.getAll(),
+        productRepository.getAll(),
+        orderRepository.getAll(),
+        orderLineRepository.getAll(),
+        materialRepository.getAll(),
+      ]);
+
+      setSuppliers(allSuppliers);
+
+      // BOM lines using this material
+      const bomForMat = allBOM.filter(
+        (b) => b.material_id === id
+      );
+
+      const productMap = new Map(
+        allProducts.map((p) => [p.id, p])
+      );
+
+      // Only active orders
+      const activeOrders = allOrders.filter(
+        (o) =>
+          o.status !== 'completed' &&
+          o.status !== 'cancelled'
+      );
+
+      let totalRequired = 0;
+
+      if (activeOrders.length > 0) {
+        const activeOrderIds = new Set(
+          activeOrders.map((o) => o.id)
+        );
+
+        const allActiveLines = allOrderLines.filter(
+          (line) => activeOrderIds.has(line.order_id)
+        );
+
+        if (allActiveLines.length > 0) {
+          const reqMats = calculateRequiredMaterials({
+            orderLines: allActiveLines,
+            products: allProducts,
+            bomLines: allBOM,
+            materials: allMaterials,
+            suppliers: allSuppliers,
+          });
+
+          const thisMatReq = reqMats.find(
+            (rm) => rm.material.id === id
+          );
+
+          if (thisMatReq) {
+            totalRequired = thisMatReq.total_quantity;
+          }
+        }
+      }
+
+      const usedIn = bomForMat.map((b) => ({
+        id: b.id,
+        product: productMap.get(b.product_id),
+        quantity_per_unit: b.quantity_per_unit,
+      })).filter((u) => u.product);
+
+      setUsedInProducts({
+        items: usedIn,
+        totalRequired,
+        uom: m.unit_of_measure,
+      });
+
+      initializePermission();
+
+    } catch (err) {
+      console.error('Failed to load material:', err);
     }
-
-    const usedIn = bomForMat.map((b) => ({
-      product: productMap.get(b.product_id),
-      quantity_per_unit: b.quantity_per_unit,
-    })).filter((u) => u.product);
-
-    setUsedInProducts({ items: usedIn, totalRequired, uom: m.unit_of_measurement });
-
-    initializePermission();
   }
 
   useEffect(() => {
     load();
+
     loadCurrencies()
       .then(setCurrencies)
-      .catch((err) => console.error("Failed to load currencies:", err));
+      .catch((err) =>
+        console.error('Failed to load currencies:', err)
+      );
   }, [id]);
 
   const permission = getPermission('material');
@@ -91,7 +144,10 @@ export default function MaterialDetailPage({ params }) {
   if (!material) return null;
 
   function set(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   }
 
   function validate() {
@@ -101,152 +157,210 @@ export default function MaterialDetailPage({ params }) {
       errs.name = 'Material name is required';
     }
 
-    if (!form.internal_code?.trim()) {
-      errs.internal_code = 'Internal code is required';
-    }
+    // if (!form.internal_code?.trim()) {
+    //   errs.internal_code = 'Internal code is required';
+    // }
 
     if (!form.category) {
       errs.category = 'Category is required';
     }
 
-    if (!form.supplier_item_code?.trim()) {
-      errs.supplier_item_code = 'Supplier item code is required';
-    }
+    // if (!form.supplier_item_code?.trim()) {
+    //   errs.supplier_item_code =
+    //     'Supplier item code is required';
+    // }
 
-    if (form.unit_cost === '' || form.unit_cost == null || Number(form.unit_cost) <= 0) {
-      errs.unit_cost = 'Unit cost must be greater than 0';
+    if (
+      form.unit_cost === '' ||
+      form.unit_cost == null ||
+      Number(form.unit_cost) <= 0
+    ) {
+      errs.unit_cost =
+        'Unit cost must be greater than 0';
     }
 
     if (!form.currency?.trim()) {
       errs.currency = 'Currency is required';
     }
 
-    if (!form.unit_of_measurement?.trim()) {
-      errs.unit_of_measurement = 'Unit of measurement is required';
+    if (!form.unit_of_measure?.trim()) {
+      errs.unit_of_measure =
+        'Unit of measurement is required';
     }
 
-    if (form.lead_time === '' || form.lead_time == null || Number(form.lead_time) <= 0) {
-      errs.lead_time = 'Lead time must be greater than 0';
-    }
-
-    // if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
-    //   errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
+    // if (
+    //   form.lead_time === '' ||
+    //   form.lead_time == null ||
+    //   Number(form.lead_time) <= 0
+    // ) {
+    //   errs.lead_time =
+    //     'Lead time must be greater than 0';
     // }
 
     return errs;
   }
 
-  function handleSave() {
+  async function handleSave() {
     const errs = validate();
+
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
 
-    const before = materialRepository.getById(id);
+    try {
+      const before = await materialRepository.getById(id);
 
-    const updatedMaterial = materialRepository.update(id, {
-      ...form,
-      supplier_id: form.supplier_id || null,
-      unit_cost:
-        form.unit_cost !== '' && form.unit_cost != null
-          ? Number(form.unit_cost)
-          : null,
-      lead_time:
-        form.lead_time !== '' && form.lead_time != null
-          ? Number(form.lead_time)
-          : null,
-      minimum_order_quantity:
-        form.minimum_order_quantity !== '' && form.minimum_order_quantity != null
-          ? Number(form.minimum_order_quantity)
-          : null,
+      const updatedMaterial =
+        await materialRepository.update(id, {
+          ...form,
+
+          supplier_id:
+            form.supplier_id || null,
+
+          unit_cost:
+            form.unit_cost !== '' &&
+              form.unit_cost != null
+              ? Number(form.unit_cost)
+              : null,
+
+          lead_time:
+            form.lead_time !== '' &&
+              form.lead_time != null
+              ? Number(form.lead_time)
+              : null,
+
+          minimum_order_quantity:
+            form.minimum_order_quantity !== '' &&
+              form.minimum_order_quantity != null
+              ? Number(form.minimum_order_quantity)
+              : null,
+        });
+
+      await auditRepository.create({
+        org_id: currentUser.org_id,
+        user_id: currentUser.id,
+        action: 'update',
+        entity_type: 'material',
+        entity_id: id,
+        before,
+        after: updatedMaterial,
+      });
+
+      setEditing(false);
+
+      await load();
+
+    } catch (err) {
+      console.error('Failed to update material:', err);
+    }
+  }
+
+  async function handleArchive() {
+    try {
+      const oldMaterial =
+        await materialRepository.getById(id);
+
+      if (!oldMaterial) return;
+
+      const newStatus =
+        oldMaterial.status === 'archived'
+          ? 'active'
+          : 'archived';
+
+      const updatedMaterial =
+        await materialRepository.update(id, {
+          status: newStatus,
+        });
+
+      await auditRepository.create({
+        org_id: currentUser.org_id,
+        user_id: currentUser.id,
+        action:
+          newStatus === 'archived'
+            ? 'archive'
+            : 'restore',
+        entity_type: 'material',
+        entity_id: id,
+        before: oldMaterial,
+        after: updatedMaterial,
+      });
+
+      await load();
+
+    } catch (err) {
+      console.error('Failed to archive/restore material:', err);
+    }
+  }
+
+  async function handleDuplicate() {
+    try {
+      const newId = uuidv4();
+
+      const newMaterial = {
+        ...material,
+        id: newId,
+        org_id: currentUser.org_id,
+        name: `${material.name} (Copy)`,
+        internal_code: material.internal_code
+          ? `${material.internal_code}-COPY`
+          : '',
+      };
+
+      const createdMaterial =
+        await materialRepository.create(newMaterial);
+
+      await auditRepository.create({
+        org_id: currentUser.org_id,
+        user_id: currentUser.id,
+        action: 'create',
+        entity_type: 'material',
+        entity_id: createdMaterial.id,
+        before: null,
+        after: createdMaterial,
+      });
+
+      router.push(
+        `/materials/${createdMaterial.id}`
+      );
+
+    } catch (err) {
+      console.error('Failed to duplicate material:', err);
+    }
+  }
+
+  async function handleDelete() {
+  try {
+    const before = await materialRepository.getById(id);
+
+    if (!before) return;
+
+    const updatedMaterial = await materialRepository.update(id, {
+      ...before,
+      spam: true,
     });
 
-    recordRepository.create({
+    await auditRepository.create({
+      org_id: currentUser.org_id,
       user_id: currentUser.id,
-      action: 'update',
+      action: 'delete',
       entity_type: 'material',
       entity_id: id,
       before,
       after: updatedMaterial,
     });
 
-    setEditing(false);
-    load();
-  }
-
-  function handleArchive() {
-    const oldMaterial = materialRepository.getById(id);
-
-    if (!oldMaterial) return;
-
-    const newStatus =
-      oldMaterial.status === 'archived' ? 'active' : 'archived';
-
-    const updatedMaterial = {
-      ...oldMaterial,
-      status: newStatus,
-    };
-
-    materialRepository.update(id, {
-      status: newStatus,
-    });
-
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: newStatus === 'archived' ? 'archive' : 'restore',
-      entity_type: 'material',
-      entity_id: id,
-      before: oldMaterial,
-      after: updatedMaterial,
-    });
-
-    load();
-  }
-
-  function handleDuplicate() {
-    const newId = uuidv4();
-
-    const newMaterial = {
-      ...material,
-      id: newId,
-      name: `${material.name} (Copy)`,
-      internal_code: material.internal_code
-        ? `${material.internal_code}-COPY`
-        : '',
-    };
-
-    materialRepository.create(newMaterial);
-
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: 'create DUPLICATE',
-      entity_type: 'material',
-      entity_id: newId,
-      before: null,
-      after: newMaterial,
-    });
-
-    router.push(`/materials/${newId}`);
-  }
-
-  function handleDelete() {
-    materialRepository.softDelete(id);
-
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: 'delete',
-      entity_type: 'Material',
-      entity_id: id,
-      before: material,
-      after: null,
-    });
-
     router.push('/materials');
+
+  } catch (err) {
+    console.error('Failed to delete material:', err);
   }
+}
 
   const supplierName = material.supplier_id
-    ? suppliers.find((s) => s.id === material.supplier_id)?.name ?? '—'
+    ? suppliers.find(
+      (s) => s.id === material.supplier_id
+    )?.name ?? '—'
     : '—';
 
   return (
@@ -365,9 +479,9 @@ export default function MaterialDetailPage({ params }) {
           <Card className="p-6">
             <Section title="Used In Products">
               <div className="space-y-2">
-                {usedInProducts.items.map(({ product, quantity_per_unit }) => (
+                {usedInProducts.items.map(({ id, product, quantity_per_unit }) => (
                   <div
-                    key={product.id}
+                    key={id}
                     onClick={() => router.push(`/products/${product.id}`)}
                     className="flex items-center justify-between py-2 px-3 rounded hover:bg-[#f5f5f5] cursor-pointer"
                   >
@@ -375,6 +489,7 @@ export default function MaterialDetailPage({ params }) {
                       <span className="text-[13px] font-medium">{product.name}</span>
                       <span className="text-[12px] text-[#737373] ml-2">{product.style_code}</span>
                     </div>
+
                     <span className="text-[13px] text-[#737373]">
                       {quantity_per_unit} {material.unit_of_measurement} / unit
                     </span>

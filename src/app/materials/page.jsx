@@ -6,12 +6,12 @@ import {
   PageHeader, Button, StatusBadge, Table, Thead, Tbody, Th, Td, Tr,
   EmptyState, Input, Select, Modal, Textarea, Warning,
 } from '@/components/ui';
-import { materialRepository } from '@/lib/data/materials';
-import { supplierRepository } from '@/lib/data/suppliers';
+import { materialRepository } from '@/lib/data/backend-materials';
+import { supplierRepository } from '@/lib/data/backend-suppliers';
 import { MATERIAL_CATEGORY_GROUPS, MATERIAL_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
-import { recordRepository } from '@/lib/data/action-record';
+import { auditRepository } from '@/lib/data/backend-audit';
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
 
@@ -34,6 +34,7 @@ const BLANK = {
 
 export default function MaterialsPage() {
   const router = useRouter();
+
   const [materials, setMaterials] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [search, setSearch] = useState('');
@@ -43,34 +44,55 @@ export default function MaterialsPage() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [errors, setErrors] = useState({});
-    const [currencies, setCurrencies] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
+
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-  function load() {
-    setMaterials(materialRepository.getAll());
-    setSuppliers(supplierRepository.getAll());
-    initializePermission();
+  async function load() {
+    try {
+      const [allMaterials, allSuppliers] = await Promise.all([
+        materialRepository.getAll(),
+        supplierRepository.getAll()
+      ]);
+
+      setMaterials(allMaterials);
+      setSuppliers(allSuppliers);
+
+      initializePermission();
+    } catch (err) {
+      console.error('Failed to load materials:', err);
+    }
   }
 
   useEffect(() => {
     load();
+
     loadCurrencies()
       .then(setCurrencies)
-      .catch((err) => console.error("Failed to load currencies:", err));
+      .catch((err) =>
+        console.error('Failed to load currencies:', err)
+      );
   }, []);
 
   const permission = getPermission('materials');
 
   const filtered = materials.filter((m) => {
-    const matchSearch = !search ||
+    const matchSearch =
+      !search ||
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       (m.internal_code || '').toLowerCase().includes(search.toLowerCase());
-    const matchCat = !categoryFilter || m.category === categoryFilter;
-    const matchStatus = !statusFilter || m.status === statusFilter;
+
+    const matchCat =
+      !categoryFilter || m.category === categoryFilter;
+
+    const matchStatus =
+      !statusFilter || m.status === statusFilter;
+
     return matchSearch && matchCat && matchStatus;
   });
 
-  const showGrouped = grouped && !search && !categoryFilter;
+  const showGrouped =
+    grouped && !search && !categoryFilter;
 
   function openModal() {
     setForm(BLANK);
@@ -89,15 +111,15 @@ export default function MaterialsPage() {
       errs.internal_code = 'Internal code is required';
     }
 
-    // if (!form.color?.trim()) {
-    //   errs.color = 'color is required';
-    // }
-
     if (!form.supplier_item_code?.trim()) {
       errs.supplier_item_code = 'Supplier item code is required';
     }
 
-    if (form.unit_cost === '' || form.unit_cost == null || Number(form.unit_cost) <= 0) {
+    if (
+      form.unit_cost === '' ||
+      form.unit_cost == null ||
+      Number(form.unit_cost) <= 0
+    ) {
       errs.unit_cost = 'Unit cost must be greater than 0';
     }
 
@@ -106,21 +128,22 @@ export default function MaterialsPage() {
     }
 
     if (!form.unit_of_measurement?.trim()) {
-      errs.unit_of_measurement = 'Unit of measurement is required';
+      errs.unit_of_measurement =
+        'Unit of measurement is required';
     }
 
-    if (form.lead_time === '' || form.lead_time == null || Number(form.lead_time) <= 0) {
+    if (
+      form.lead_time === '' ||
+      form.lead_time == null ||
+      Number(form.lead_time) <= 0
+    ) {
       errs.lead_time = 'Lead time must be greater than 0';
     }
 
-    // if (form.minimum_order_quantity === '' || form.minimum_order_quantity == null || Number(form.minimum_order_quantity) <= 0) {
-    //   errs.minimum_order_quantity = 'Minimum order quantity must be greater than 0';
-    // }
-
     return errs;
   }
-  
-  function handleSave() {
+
+  async function handleSave() {
     const errs = validate();
 
     if (Object.keys(errs).length > 0) {
@@ -128,42 +151,60 @@ export default function MaterialsPage() {
       return;
     }
 
-    const id = uuidv4();
-
     const material = {
-      id,
       ...form,
+      org_id: currentUser.org_id,
       supplier_id: form.supplier_id || null,
-      unit_cost: form.unit_cost !== '' ? Number(form.unit_cost) : null,
-      lead_time: form.lead_time !== '' ? Number(form.lead_time) : null,
+      unit_of_measure: form.unit_of_measurement,
+      unit_cost:
+        form.unit_cost !== ''
+          ? Number(form.unit_cost)
+          : null,
+      lead_time:
+        form.lead_time !== ''
+          ? Number(form.lead_time)
+          : null,
       minimum_order_quantity:
         form.minimum_order_quantity !== ''
           ? Number(form.minimum_order_quantity)
           : null,
     };
 
-    materialRepository.create(material);
+    try {
+      const createdMaterial =
+        await materialRepository.create(material);
 
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: 'create',
-      entity_type: 'material',
-      entity_id: id,
-      before: null,
-      after: material,
-    });
+      await auditRepository.create({
+        org_id: currentUser.org_id,
+        user_id: currentUser.id,
+        action: 'create',
+        entity_type: 'material',
+        entity_id: createdMaterial.id,
+        before: null,
+        after: createdMaterial,
+      });
 
-    setModal(false);
-    load();
-    router.push(`/materials/${id}`);
+      setModal(false);
+
+      await load();
+
+      router.push(`/materials/${createdMaterial.id}`);
+    } catch (err) {
+      console.error('Failed to create material:', err);
+    }
   }
 
   function set(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [field]: value
+    }));
   }
 
   function supplierName(supplier_id) {
-    return suppliers.find((s) => s.id === supplier_id)?.name ?? '—';
+    return (
+      suppliers.find((s) => s.id === supplier_id)?.name ?? '—'
+    );
   }
 
   const MaterialRow = ({ m }) => (
@@ -324,7 +365,17 @@ export default function MaterialsPage() {
               ))}
             </Select>
           )}
-          <Input label="Unit of Measurement" value={form.unit_of_measurement} error={errors.unit_of_measurement} onChange={(e) => set('unit_of_measurement', e.target.value)} />
+          <Select
+            label="Unit of Measurement"
+            value={form.unit_of_measurement}
+            error={errors.unit_of_measurement}
+            onChange={(e) => set('unit_of_measurement', e.target.value)}
+          >
+            <option value="">Select unit</option>
+            <option value="m">m</option>
+            <option value="kg">kg</option>
+            <option value="pcs">pcs</option>
+          </Select>
           <Input label="Lead Time (days)" type="number" value={form.lead_time} min={0} error={errors.lead_time} onChange={(e) => set('lead_time', e.target.value)} />
           <Input label="Min. Order Qty" type="number" value={form.minimum_order_quantity} min={0} error={errors.minimum_order_quantity} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
