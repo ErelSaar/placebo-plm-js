@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   PageHeader, Button, Card, Input, Textarea, Select, Warning, Section,
-  Table, Thead, Tbody, Th, Td, Tr, EmptyState,
+  Table, Thead, Tbody, Th, Td, Tr, EmptyState, formatCurrency,
 } from '@/components/ui';
-import { orderRepository, orderLineRepository } from '@/lib/data/backend-orders';
+import { orderRepository, orderLineRepository, orderAdditionalCostRepository } from '@/lib/data/backend-orders';
 import { productRepository } from '@/lib/data/backend-products';
 import { auditRepository } from '@/lib/data/backend-audit';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +14,7 @@ import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
 import { loadCurrencies } from '@/lib/data/currency';
+import { getRate, convertCurrency, roundForDisplay } from '@/lib/currency';
 
 export default function NewOrderPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function NewOrderPage() {
   const [products, setProducts] = useState([]);
   const [productSearch, setProductSearch] = useState('');
   const [lines, setLines] = useState([]);
+  const [additionalCosts, setAdditionalCosts] = useState([]);
   const [errors, setErrors] = useState({});
   const [currencies, setCurrencies] = useState([]);
 
@@ -148,87 +150,139 @@ export default function NewOrderPage() {
   }
 
   // =========================
+  // ADDITIONAL COSTS
+  // =========================
+
+  function addAdditionalCost() {
+    setAdditionalCosts((prev) => [
+      ...prev,
+      {
+        _tempId: crypto.randomUUID(),
+        cost_type: '',
+        amount: '',
+        currency: form.order_currency || 'EUR',
+        description: '',
+      },
+    ]);
+  }
+
+  function updateAdditionalCost(tempId, field, value) {
+    setAdditionalCosts((prev) =>
+      prev.map((c) =>
+        c._tempId === tempId ? { ...c, [field]: value } : c
+      )
+    );
+  }
+
+  function removeAdditionalCost(tempId) {
+    setAdditionalCosts((prev) =>
+      prev.filter((c) => c._tempId !== tempId)
+    );
+  }
+
+  // =========================
+  // TOTALS
+  // =========================
+
+  function toOrderCurrency(amount, fromCurrency) {
+    if (amount == null || isNaN(amount)) return null;
+    const orderCurrency = form.order_currency || 'EUR';
+    if (fromCurrency === orderCurrency) return amount;
+    const rate = getRate(fromCurrency, orderCurrency, currencies);
+    if (!rate) return null;
+    return convertCurrency(amount, fromCurrency, orderCurrency, rate.rate);
+  }
+
+  const orderLinesTotal = lines.reduce((total, line) => {
+    const price = line.product?.selling_price;
+    if (price == null) return total;
+    const converted = toOrderCurrency(price, line.product?.currency || form.order_currency);
+    if (converted === null) return total;
+    return total + Number(line.quantity) * converted;
+  }, 0);
+
+  const additionalCostsTotal = additionalCosts.reduce((total, cost) => {
+    const amount = Number(cost.amount);
+    if (!cost.amount || isNaN(amount) || amount < 0) return total;
+    const converted = toOrderCurrency(amount, cost.currency || form.order_currency);
+    if (converted === null) return total;
+    return total + converted;
+  }, 0);
+
+  const orderTotal = roundForDisplay(orderLinesTotal + additionalCostsTotal);
+
+  // =========================
   // VALIDATION
   // =========================
 
-  async function validate(status) {
+  function validate(status) {
     const errs = {};
 
     if (!form.order_number?.trim()) {
-      errs.order_number =
-        'Order number is required';
-    } else {
-      /*
-       * If your new orderRepository has an
-       * orderNumberExists() function, use:
-       *
-       * if (await orderRepository.orderNumberExists(form.order_number)) {
-       *   errs.order_number = 'Order number already exists';
-       * }
-       *
-       * Otherwise this should eventually be
-       * handled by the backend with a UNIQUE
-       * constraint on order_number.
-       */
+      errs.order_number = 'Order number is required';
     }
 
     if (!form.order_name?.trim()) {
-      errs.order_name =
-        'Order name is required';
+      errs.order_name = 'Order name is required';
     }
 
     if (!form.season) {
-      errs.season =
-        'Season is required';
+      errs.season = 'Season is required';
     }
 
     if (!form.order_currency?.trim()) {
-      errs.order_currency =
-        'Currency is required';
+      errs.order_currency = 'Currency is required';
     }
 
     if (!form.order_date) {
-      errs.order_date =
-        'Order date is required';
+      errs.order_date = 'Order date is required';
     }
 
     if (!form.target_date) {
-      errs.target_date =
-        'Target date is required';
+      errs.target_date = 'Target date is required';
     }
 
     if (!form.production_country?.trim()) {
-      errs.production_country =
-        'Production country is required';
+      errs.production_country = 'Production country is required';
     }
 
     if (!form.production_factory?.trim()) {
-      errs.production_factory =
-        'Production factory is required';
+      errs.production_factory = 'Production factory is required';
     }
 
     if (!form.shipping_destination?.trim()) {
-      errs.shipping_destination =
-        'Shipping destination is required';
+      errs.shipping_destination = 'Shipping destination is required';
     }
 
     if (!form.destination_address?.trim()) {
-      errs.destination_address =
-        'Destination address is required';
+      errs.destination_address = 'Destination address is required';
     }
 
-    if (
-      status === 'confirmed' &&
-      lines.length === 0
-    ) {
-      errs.lines =
-        'At least one product is required to confirm an order';
+    if (status === 'confirmed' && lines.length === 0) {
+      errs.lines = 'At least one product is required to confirm an order';
     }
 
     if (hasDuplicate()) {
-      errs.lines =
-        'Duplicate product + color + size combinations are not allowed';
+      errs.lines = 'Duplicate product + color + size combinations are not allowed';
     }
+
+    // Validate additional costs (skip fully blank rows — they are omitted on save)
+    additionalCosts.forEach((cost, i) => {
+      const hasType = !!cost.cost_type;
+      const hasAmount = cost.amount !== '' && cost.amount !== null && cost.amount !== undefined;
+      const blank = !hasType && !hasAmount && !cost.description?.trim();
+      if (blank) return; // will be skipped on save
+
+      if (!hasType) {
+        errs[`additional_cost_${i}_type`] = 'Cost type is required';
+      }
+      if (!hasAmount || isNaN(Number(cost.amount)) || Number(cost.amount) < 0) {
+        errs[`additional_cost_${i}_amount`] = 'Amount must be a non-negative number';
+      }
+      if (!cost.currency) {
+        errs[`additional_cost_${i}_currency`] = 'Currency is required';
+      }
+    });
 
     return errs;
   }
@@ -280,6 +334,20 @@ export default function NewOrderPage() {
         });
       }
 
+      // Save additional costs — skip fully blank rows.
+      const costsToSave = additionalCosts.filter(
+        (c) => c.cost_type || (c.amount !== '' && c.amount !== null)
+      );
+      for (const cost of costsToSave) {
+        await orderAdditionalCostRepository.create({
+          order_id: createdOrder.id,
+          cost_type: cost.cost_type,
+          amount: Number(cost.amount),
+          currency: cost.currency || form.order_currency,
+          description: cost.description || null,
+        });
+      }
+
       // One audit record for the new order.
       await auditRepository.create({
         user_id: currentUser.id,
@@ -290,6 +358,7 @@ export default function NewOrderPage() {
         after: {
           ...createdOrder,
           lines,
+          additional_costs: costsToSave,
         },
       });
 
@@ -718,6 +787,178 @@ export default function NewOrderPage() {
                 </Table>
               )}
 
+            </Section>
+          </Card>
+
+          {/* ADDITIONAL COSTS */}
+
+          <Card className="p-6">
+            <Section
+              title="Additional Costs"
+              actions={
+                <Button size="sm" onClick={addAdditionalCost}>
+                  + Add Cost
+                </Button>
+              }
+            >
+
+              {additionalCosts.length === 0 ? (
+                <p className="text-[13px] text-[#737373] py-4">
+                  No additional costs. Click &quot;+ Add Cost&quot; to add
+                  shipping, customs, pattern costs, or other charges.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {additionalCosts.map((cost, i) => (
+                    <div
+                      key={cost._tempId}
+                      className="grid gap-3 items-end"
+                      style={{ gridTemplateColumns: '160px 120px 110px 1fr auto' }}
+                    >
+
+                      <div className="flex flex-col gap-1">
+                        <Select
+                          label="Cost Type *"
+                          value={cost.cost_type}
+                          onChange={(e) =>
+                            updateAdditionalCost(
+                              cost._tempId,
+                              'cost_type',
+                              e.target.value
+                            )
+                          }
+                          error={errors[`additional_cost_${i}_type`]}
+                        >
+                          <option value="">Select type</option>
+                          <option value="shipping">Shipping</option>
+                          <option value="customs">Customs</option>
+                          <option value="pattern_cost">Pattern Cost</option>
+                          <option value="other">Other</option>
+                        </Select>
+                      </div>
+
+                      <Input
+                        label="Amount *"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={cost.amount}
+                        onChange={(e) =>
+                          updateAdditionalCost(
+                            cost._tempId,
+                            'amount',
+                            e.target.value
+                          )
+                        }
+                        error={errors[`additional_cost_${i}_amount`]}
+                      />
+
+                      {currencies.length === 0 ? (
+                        <Input
+                          label="Currency *"
+                          value={cost.currency}
+                          onChange={(e) =>
+                            updateAdditionalCost(
+                              cost._tempId,
+                              'currency',
+                              e.target.value
+                            )
+                          }
+                          error={errors[`additional_cost_${i}_currency`]}
+                        />
+                      ) : (
+                        <Select
+                          label="Currency *"
+                          value={cost.currency}
+                          onChange={(e) =>
+                            updateAdditionalCost(
+                              cost._tempId,
+                              'currency',
+                              e.target.value
+                            )
+                          }
+                          error={errors[`additional_cost_${i}_currency`]}
+                        >
+                          {currencies.map((c) => (
+                            <option key={c.quote} value={c.quote}>
+                              {c.quote}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+
+                      <Input
+                        label="Description (optional)"
+                        value={cost.description}
+                        onChange={(e) =>
+                          updateAdditionalCost(
+                            cost._tempId,
+                            'description',
+                            e.target.value
+                          )
+                        }
+                      />
+
+                      <div className="pb-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            removeAdditionalCost(cost._tempId)
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
+
+            </Section>
+          </Card>
+
+          {/* ORDER SUMMARY */}
+
+          <Card className="p-6">
+            <Section title="Order Summary">
+              <div className="space-y-2 text-[13px]">
+
+                <div className="flex justify-between">
+                  <span className="text-[#525252]">Order Lines Total</span>
+                  <span>
+                    {formatCurrency(
+                      roundForDisplay(orderLinesTotal),
+                      form.order_currency || 'EUR'
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-[#525252]">Additional Costs</span>
+                  <span>
+                    {formatCurrency(
+                      roundForDisplay(additionalCostsTotal),
+                      form.order_currency || 'EUR'
+                    )}
+                  </span>
+                </div>
+
+                <div className="border-t border-[#e5e5e5] pt-2 flex justify-between font-semibold">
+                  <span>Order Total</span>
+                  <span>
+                    {formatCurrency(orderTotal, form.order_currency || 'EUR')}
+                  </span>
+                </div>
+
+              </div>
+              {lines.some((l) => l.product?.selling_price == null) && (
+                <p className="text-[11px] text-[#737373] mt-3">
+                  * Some products have no selling price set — their value is
+                  excluded from the Order Lines Total.
+                </p>
+              )}
             </Section>
           </Card>
 
