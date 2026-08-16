@@ -960,15 +960,22 @@ export default function OrderDetailPage({ params }) {
             ) : (
               <div className="space-y-3">
                 {costsForm.additional_costs.map((ac, idx) => (
-                  <div key={ac.id} className="grid grid-cols-4 gap-3 items-end">
-                    <Input label="Name" value={ac.name} onChange={(e) => updateAdditionalCost(idx, 'name', e.target.value)} />
-                    <Select label="Type" value={ac.cost_type} onChange={(e) => updateAdditionalCost(idx, 'cost_type', e.target.value)}>
-                      <option value="fixed">Fixed</option>
-                      <option value="per_unit">Per Unit</option>
-                      <option value="percentage">Percentage</option>
-                    </Select>
-                    <Input label="Amount" type="number" step="0.01" value={ac.amount} onChange={(e) => updateAdditionalCost(idx, 'amount', e.target.value)} />
-                    <Button variant="danger" size="sm" onClick={() => removeAdditionalCost(idx)}>Remove</Button>
+                  <div key={ac.id} className="flex items-end gap-3">
+                    <div
+                      className="grid gap-3 items-end flex-1 min-w-0"
+                      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}
+                    >
+                      <Input label="Name" value={ac.name} onChange={(e) => updateAdditionalCost(idx, 'name', e.target.value)} />
+                      <Select label="Type" value={ac.cost_type} onChange={(e) => updateAdditionalCost(idx, 'cost_type', e.target.value)}>
+                        <option value="fixed">Fixed</option>
+                        <option value="per_unit">Per Unit</option>
+                        <option value="percentage">Percentage</option>
+                      </Select>
+                      <Input label="Amount" type="number" step="0.01" value={ac.amount} onChange={(e) => updateAdditionalCost(idx, 'amount', e.target.value)} />
+                    </div>
+                    <div className="pb-1 shrink-0">
+                      <Button variant="danger" size="sm" onClick={() => removeAdditionalCost(idx)}>Remove</Button>
+                    </div>
                   </div>
                 ))}
               </div>

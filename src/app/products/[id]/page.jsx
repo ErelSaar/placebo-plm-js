@@ -524,6 +524,7 @@ export default function ProductDetailPage({ params }) {
                     <Input label="Pricing Multiplier" type="number" step="0.1" value={form.pricing_multiplier ?? 3.5} min={0.1} onChange={(e) => set('pricing_multiplier', e.target.value)} />
                     <Textarea label="Description" value={form.description || ''} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
                     <Textarea label="Notes" value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
+                    <Input label="Image URL (optional)" value={form.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." className="col-span-2" />
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-x-8 gap-y-4">
@@ -544,6 +545,19 @@ export default function ProductDetailPage({ params }) {
             </Card>
 
             <div className="space-y-4">
+              <Card className="p-4 overflow-hidden">
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-full rounded object-cover max-h-56"
+                  />
+                ) : (
+                  <div className="w-full h-32 rounded bg-[#f5f5f5] flex items-center justify-center">
+                    <span className="text-[12px] text-[#a3a3a3]">No image</span>
+                  </div>
+                )}
+              </Card>
               <Card className="p-5">
                 <p className="text-[12px] text-[#737373] uppercase tracking-wider font-medium">BOM Lines</p>
                 <p className="text-[28px] font-semibold mt-1">{bomLines.length}</p>

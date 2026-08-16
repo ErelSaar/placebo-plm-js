@@ -36,6 +36,7 @@ export default function NewOrderPage() {
     production_factory: '',
     shipping_destination: '',
     destination_address: '',
+    shipping_cost: '',
     order_currency: 'EUR',
     notes: '',
   });
@@ -209,7 +210,10 @@ export default function NewOrderPage() {
     return total + converted;
   }, 0);
 
-  const orderTotal = roundForDisplay(orderLinesTotal + additionalCostsTotal);
+  // shipping_cost is entered in the order currency — no conversion needed
+  const shippingTotal = roundForDisplay(Number(form.shipping_cost) || 0);
+
+  const orderTotal = roundForDisplay(orderLinesTotal + shippingTotal + additionalCostsTotal);
 
   // =========================
   // VALIDATION
@@ -303,7 +307,7 @@ export default function NewOrderPage() {
       const order = {
         ...form,
         status,
-        shipping_cost: null,
+        shipping_cost: form.shipping_cost !== '' ? Number(form.shipping_cost) : null,
         shipping_cost_type: 'fixed',
         customs_cost: null,
         customs_type: 'fixed',
@@ -605,6 +609,17 @@ export default function NewOrderPage() {
                   }
                 />
 
+                <Input
+                  label="Shipping Cost (optional)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.shipping_cost}
+                  onChange={(e) =>
+                    set('shipping_cost', e.target.value)
+                  }
+                />
+
                 <Textarea
                   label="Notes"
                   value={form.notes}
@@ -810,13 +825,12 @@ export default function NewOrderPage() {
               ) : (
                 <div className="space-y-4">
                   {additionalCosts.map((cost, i) => (
-                    <div
-                      key={cost._tempId}
-                      className="grid gap-3 items-end"
-                      style={{ gridTemplateColumns: '160px 120px 110px 1fr auto' }}
-                    >
+                    <div key={cost._tempId} className="flex items-end gap-3">
+                      <div
+                        className="grid gap-3 items-end flex-1 min-w-0"
+                        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
+                      >
 
-                      <div className="flex flex-col gap-1">
                         <Select
                           label="Cost Type *"
                           value={cost.cost_type}
@@ -830,76 +844,76 @@ export default function NewOrderPage() {
                           error={errors[`additional_cost_${i}_type`]}
                         >
                           <option value="">Select type</option>
-                          <option value="shipping">Shipping</option>
                           <option value="customs">Customs</option>
                           <option value="pattern_cost">Pattern Cost</option>
                           <option value="other">Other</option>
                         </Select>
+
+                        <Input
+                          label="Amount *"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={cost.amount}
+                          onChange={(e) =>
+                            updateAdditionalCost(
+                              cost._tempId,
+                              'amount',
+                              e.target.value
+                            )
+                          }
+                          error={errors[`additional_cost_${i}_amount`]}
+                        />
+
+                        {currencies.length === 0 ? (
+                          <Input
+                            label="Currency *"
+                            value={cost.currency}
+                            onChange={(e) =>
+                              updateAdditionalCost(
+                                cost._tempId,
+                                'currency',
+                                e.target.value
+                              )
+                            }
+                            error={errors[`additional_cost_${i}_currency`]}
+                          />
+                        ) : (
+                          <Select
+                            label="Currency *"
+                            value={cost.currency}
+                            onChange={(e) =>
+                              updateAdditionalCost(
+                                cost._tempId,
+                                'currency',
+                                e.target.value
+                              )
+                            }
+                            error={errors[`additional_cost_${i}_currency`]}
+                          >
+                            {currencies.map((c) => (
+                              <option key={c.quote} value={c.quote}>
+                                {c.quote}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+
+                        <Input
+                          label="Description (optional)"
+                          value={cost.description}
+                          onChange={(e) =>
+                            updateAdditionalCost(
+                              cost._tempId,
+                              'description',
+                              e.target.value
+                            )
+                          }
+                        />
+
                       </div>
 
-                      <Input
-                        label="Amount *"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={cost.amount}
-                        onChange={(e) =>
-                          updateAdditionalCost(
-                            cost._tempId,
-                            'amount',
-                            e.target.value
-                          )
-                        }
-                        error={errors[`additional_cost_${i}_amount`]}
-                      />
-
-                      {currencies.length === 0 ? (
-                        <Input
-                          label="Currency *"
-                          value={cost.currency}
-                          onChange={(e) =>
-                            updateAdditionalCost(
-                              cost._tempId,
-                              'currency',
-                              e.target.value
-                            )
-                          }
-                          error={errors[`additional_cost_${i}_currency`]}
-                        />
-                      ) : (
-                        <Select
-                          label="Currency *"
-                          value={cost.currency}
-                          onChange={(e) =>
-                            updateAdditionalCost(
-                              cost._tempId,
-                              'currency',
-                              e.target.value
-                            )
-                          }
-                          error={errors[`additional_cost_${i}_currency`]}
-                        >
-                          {currencies.map((c) => (
-                            <option key={c.quote} value={c.quote}>
-                              {c.quote}
-                            </option>
-                          ))}
-                        </Select>
-                      )}
-
-                      <Input
-                        label="Description (optional)"
-                        value={cost.description}
-                        onChange={(e) =>
-                          updateAdditionalCost(
-                            cost._tempId,
-                            'description',
-                            e.target.value
-                          )
-                        }
-                      />
-
-                      <div className="pb-1">
+                      <div className="pb-1 shrink-0">
                         <Button
                           size="sm"
                           variant="ghost"
@@ -910,7 +924,6 @@ export default function NewOrderPage() {
                           Remove
                         </Button>
                       </div>
-
                     </div>
                   ))}
                 </div>
@@ -930,6 +943,16 @@ export default function NewOrderPage() {
                   <span>
                     {formatCurrency(
                       roundForDisplay(orderLinesTotal),
+                      form.order_currency || 'EUR'
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-[#525252]">Shipping</span>
+                  <span>
+                    {formatCurrency(
+                      shippingTotal,
                       form.order_currency || 'EUR'
                     )}
                   </span>

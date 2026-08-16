@@ -31,6 +31,7 @@ const BLANK = {
   currency: 'EUR',
   notes: '',
   pricing_multiplier: 3.5,
+  image_url: '',
 };
 
 export default function ProductsPage() {
@@ -261,6 +262,7 @@ export default function ProductsPage() {
           )}
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
+          <Input label="Image URL (optional)" value={form.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." className="col-span-2" />
         </div>
       </Modal>
     </div>
