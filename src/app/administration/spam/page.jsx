@@ -193,7 +193,6 @@ export default function SpamPage() {
                 <tr>
                   <Th>Material</Th>
                   <Th>Category</Th>
-                  <Th>Internal Code</Th>
                   <Th>Deleted</Th>
                   <Th></Th>
                 </tr>
@@ -203,7 +202,6 @@ export default function SpamPage() {
                   <Tr key={m.id} className={rowClass}>
                     <Td className="font-medium line-through text-[#a3a3a3]">{m.name}</Td>
                     <Td>{m.category}</Td>
-                    <Td>{m.internal_code || '—'}</Td>
                     <Td className="text-[#737373]">{m.updated_at ? new Date(m.updated_at).toLocaleDateString('en-GB') : '—'}</Td>
                     <Td>
                       <div className="flex gap-2">
