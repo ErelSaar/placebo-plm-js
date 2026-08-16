@@ -1,5 +1,4 @@
 const attachment = {
-    org_id: null,
     entity_type: null,
     entity_id: null,
     file_name: null,
@@ -12,7 +11,6 @@ const attachment = {
 
 
 export function selectAttachment(file, {
-    org_id,
     entity_type,
     uploaded_by
 }) {
@@ -37,7 +35,6 @@ export function selectAttachment(file, {
         throw new Error("File cannot exceed 25 MB.");
     }
 
-    attachment.org_id = org_id;
     attachment.entity_type = entity_type;
     attachment.entity_id = null;
 
@@ -63,7 +60,6 @@ export async function sendAttachment(entity_id) {
 
     const formData = new FormData();
 
-    formData.append("org_id", attachment.org_id);
     formData.append("entity_type", attachment.entity_type);
     formData.append("entity_id", attachment.entity_id);
     formData.append("file_name", attachment.file_name);
@@ -107,7 +103,6 @@ export function getAttachment() {
 
 
 export function resetAttachment() {
-    attachment.org_id = null;
     attachment.entity_type = null;
     attachment.entity_id = null;
     attachment.file_name = null;

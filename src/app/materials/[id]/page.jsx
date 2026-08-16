@@ -238,7 +238,6 @@ export default function MaterialDetailPage({ params }) {
         });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'material',
@@ -274,7 +273,6 @@ export default function MaterialDetailPage({ params }) {
         });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action:
           newStatus === 'archived'
@@ -300,18 +298,16 @@ export default function MaterialDetailPage({ params }) {
       const newMaterial = {
         ...material,
         id: newId,
-        org_id: currentUser.org_id,
         name: `${material.name} (Copy)`,
         internal_code: material.internal_code
           ? `${material.internal_code}-COPY`
           : '',
       };
 
-      const createdMaterial =
-        await materialRepository.create(newMaterial);
+      const response = await materialRepository.create(newMaterial);
+      const createdMaterial = response.material;
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'create',
         entity_type: 'material',
@@ -320,9 +316,7 @@ export default function MaterialDetailPage({ params }) {
         after: createdMaterial,
       });
 
-      router.push(
-        `/materials/${createdMaterial.id}`
-      );
+      router.push(`/materials/${createdMaterial.id}`);
 
     } catch (err) {
       console.error('Failed to duplicate material:', err);
@@ -330,32 +324,31 @@ export default function MaterialDetailPage({ params }) {
   }
 
   async function handleDelete() {
-  try {
-    const before = await materialRepository.getById(id);
+    try {
+      const before = await materialRepository.getById(id);
 
-    if (!before) return;
+      if (!before) return;
 
-    const updatedMaterial = await materialRepository.update(id, {
-      ...before,
-      spam: true,
-    });
+      const updatedMaterial = await materialRepository.update(id, {
+        ...before,
+        spam: true,
+      });
 
-    await auditRepository.create({
-      org_id: currentUser.org_id,
-      user_id: currentUser.id,
-      action: 'delete',
-      entity_type: 'material',
-      entity_id: id,
-      before,
-      after: updatedMaterial,
-    });
+      await auditRepository.create({
+        user_id: currentUser.id,
+        action: 'update',
+        entity_type: 'material',
+        entity_id: id,
+        before,
+        after: updatedMaterial,
+      });
 
-    router.push('/materials');
+      router.push('/materials');
 
-  } catch (err) {
-    console.error('Failed to delete material:', err);
+    } catch (err) {
+      console.error('Failed to delete material:', err);
+    }
   }
-}
 
   const supplierName = material.supplier_id
     ? suppliers.find(

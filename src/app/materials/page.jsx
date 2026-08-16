@@ -153,7 +153,6 @@ export default function MaterialsPage() {
 
     const material = {
       ...form,
-      org_id: currentUser.org_id,
       supplier_id: form.supplier_id || null,
       unit_of_measure: form.unit_of_measurement,
       unit_cost:
@@ -171,11 +170,10 @@ export default function MaterialsPage() {
     };
 
     try {
-      const createdMaterial =
-        await materialRepository.create(material);
+      const response = await materialRepository.create(material);
+      const createdMaterial = response.material;
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'create',
         entity_type: 'material',

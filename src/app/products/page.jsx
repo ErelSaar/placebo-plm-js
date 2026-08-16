@@ -126,7 +126,6 @@ export default function ProductsPage() {
     const id = createdProduct.id;
 
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'create',
       entity_type: 'product',

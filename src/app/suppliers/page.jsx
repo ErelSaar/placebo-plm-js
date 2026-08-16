@@ -139,7 +139,6 @@ export default function SuppliersPage() {
 
     const supplier = {
       id,
-      org_id: currentUser.org_id,
       ...form,
 
       lead_time_days:
@@ -184,6 +183,7 @@ export default function SuppliersPage() {
       [field]: value,
     }));
   }
+  
   return (
     <div>
       <PageHeader

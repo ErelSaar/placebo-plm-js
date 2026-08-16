@@ -1,5 +1,9 @@
-// import { BASE_URL } from './config.js';
-const BASE_URL = "http://localhost:5173/api"
+const BASE_URL = "http://localhost:5173/api";
+
+
+// =========================
+// RESPONSE HANDLER
+// =========================
 
 const handleResponse = async (response) => {
     const data = await response.json().catch(() => ({}));
@@ -15,375 +19,19 @@ const handleResponse = async (response) => {
 
 
 // =========================
-// ORDER
+// GENERIC TABLE REQUEST
 // =========================
 
-const getOrder = async (orderId) => {
-    // Get the main order
-    const orderResponse = await fetch(
-        `${BASE_URL}/orders/${orderId}`
-    );
-
-    const order = await handleResponse(orderResponse);
-
-    // Get the two child tables separately
-    const linesResponse = await fetch(
-        `${BASE_URL}/order_lines?order_id=${encodeURIComponent(orderId)}`
-    );
-
-    const lines = await handleResponse(linesResponse);
-
-    const costsResponse = await fetch(
-        `${BASE_URL}/order_additional_costs?order_id=${encodeURIComponent(orderId)}`
-    );
-
-    const additionalCosts = await handleResponse(costsResponse);
-
-    return {
-        ...order,
-        lines,
-        additional_costs: additionalCosts
-    };
-};
-
-
-const updateOrder = async (orderId, data) => {
-    const {
-        lines,
-        additional_costs,
-        ...orderData
-    } = data;
-
-    // Update the actual order
-    const orderResponse = await fetch(
-        `${BASE_URL}/orders/${orderId}`,
-        {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(orderData)
-        }
-    );
-
-    const order = await handleResponse(orderResponse);
-
-    // Update order lines if supplied
-    if (lines !== undefined) {
-        const existingLinesResponse = await fetch(
-            `${BASE_URL}/order_lines?order_id=${encodeURIComponent(orderId)}`
-        );
-
-        const existingLines = await handleResponse(existingLinesResponse);
-
-        const existingIds = new Set(
-            existingLines.map((line) => line.id)
-        );
-
-        const receivedIds = new Set(
-            lines
-                .filter((line) => line.id != null)
-                .map((line) => line.id)
-        );
-
-        // Delete removed lines
-        for (const line of existingLines) {
-            if (!receivedIds.has(line.id)) {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/order_lines/${line.id}`,
-                        {
-                            method: 'DELETE'
-                        }
-                    )
-                );
-            }
-        }
-
-        // Add/update lines
-        for (const line of lines) {
-            if (existingIds.has(line.id)) {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/order_lines/${line.id}`,
-                        {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(line)
-                        }
-                    )
-                );
-            } else {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/order_lines`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                ...line,
-                                order_id: orderId
-                            })
-                        }
-                    )
-                );
-            }
-        }
-    }
-
-    // Update additional costs if supplied
-    if (additional_costs !== undefined) {
-        const existingCostsResponse = await fetch(
-            `${BASE_URL}/order_additional_costs?order_id=${encodeURIComponent(orderId)}`
-        );
-
-        const existingCosts = await handleResponse(existingCostsResponse);
-
-        const existingIds = new Set(
-            existingCosts.map((cost) => cost.id)
-        );
-
-        const receivedIds = new Set(
-            additional_costs
-                .filter((cost) => cost.id != null)
-                .map((cost) => cost.id)
-        );
-
-        // Delete removed costs
-        for (const cost of existingCosts) {
-            if (!receivedIds.has(cost.id)) {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/order_additional_costs/${cost.id}`,
-                        {
-                            method: 'DELETE'
-                        }
-                    )
-                );
-            }
-        }
-
-        // Add/update costs
-        for (const cost of additional_costs) {
-            if (existingIds.has(cost.id)) {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/order_additional_costs/${cost.id}`,
-                        {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(cost)
-                        }
-                    )
-                );
-            } else {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/order_additional_costs`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                ...cost,
-                                order_id: orderId
-                            })
-                        }
-                    )
-                );
-            }
-        }
-    }
-
-    // Return the complete updated order
-    return await getOrder(orderId);
-};
-
-
-// =========================
-// MATERIAL
-// =========================
-
-const getMaterial = async (materialId) => {
-    const materialResponse = await fetch(
-        `${BASE_URL}/materials/${materialId}`
-    );
-
-    const material = await handleResponse(materialResponse);
-
-    const bomResponse = await fetch(
-        `${BASE_URL}/bom_lines?material_id=${encodeURIComponent(materialId)}`
-    );
-
-    const bomLines = await handleResponse(bomResponse);
-
-    return {
-        ...material,
-        bom_lines: bomLines
-    };
-};
-
-
-const updateMaterial = async (materialId, data) => {
-    const {
-        bom_lines,
-        ...materialData
-    } = data;
-
-    // Update the material itself
-    const materialResponse = await fetch(
-        `${BASE_URL}/materials/${materialId}`,
-        {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(materialData)
-        }
-    );
-
-    await handleResponse(materialResponse);
-
-    // Update BOM lines separately
-    if (bom_lines !== undefined) {
-        const existingResponse = await fetch(
-            `${BASE_URL}/bom_lines?material_id=${encodeURIComponent(materialId)}`
-        );
-
-        const existingLines = await handleResponse(existingResponse);
-
-        const existingIds = new Set(
-            existingLines.map((line) => line.id)
-        );
-
-        const receivedIds = new Set(
-            bom_lines
-                .filter((line) => line.id != null)
-                .map((line) => line.id)
-        );
-
-        // Delete BOM lines that no longer exist
-        for (const line of existingLines) {
-            if (!receivedIds.has(line.id)) {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/bom_lines/${line.id}`,
-                        {
-                            method: 'DELETE'
-                        }
-                    )
-                );
-            }
-        }
-
-        // Add or update BOM lines
-        for (const line of bom_lines) {
-            if (existingIds.has(line.id)) {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/bom_lines/${line.id}`,
-                        {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(line)
-                        }
-                    )
-                );
-            } else {
-                await handleResponse(
-                    await fetch(
-                        `${BASE_URL}/bom_lines`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                ...line,
-                                material_id: materialId
-                            })
-                        }
-                    )
-                );
-            }
-        }
-    }
-
-    return await getMaterial(materialId);
-};
-
-
-// =========================
-// MAIN FUNCTION
-// =========================
-
-export const apiRequest = async (
-    dataType,
+const tableRequest = async (
+    table,
     command,
     id = null,
     body = null,
     filters = {}
 ) => {
 
-    // =========================
-    // ORDER SPECIAL HANDLING
-    // =========================
-
-    if (
-        dataType === 'orders' &&
-        (command === 'get' || command === 'update')
-    ) {
-        if (id == null) {
-            throw new Error(`ID is required for order ${command}`);
-        }
-
-        if (command === 'get') {
-            return await getOrder(id);
-        }
-
-        return await updateOrder(id, body);
-    }
-
-
-    // =========================
-    // MATERIAL SPECIAL HANDLING
-    // =========================
-
-    if (
-        dataType === 'materials' &&
-        command === 'update'
-    ) {
-        if (id == null) {
-            throw new Error(`ID is required for material update`);
-        }
-
-        return await updateMaterial(id, body);
-    }
-
-    if (
-        dataType === 'materials' &&
-        command === 'get' &&
-        id != null
-    ) {
-        return await getMaterial(id);
-    }
-
-
-    // =========================
-    // GENERIC REQUEST
-    // =========================
-
     let method;
-    let url = `${BASE_URL}/${dataType}`;
+    let url = `${BASE_URL}/${table}`;
 
     switch (command) {
 
@@ -391,22 +39,80 @@ export const apiRequest = async (
             method = 'GET';
 
             if (id != null) {
-
                 url += `/${id}`;
-
             } else {
-
                 const params = new URLSearchParams();
+
+                // =========================
+                // ORDER FILTERS
+                // =========================
+
+                if (table === 'orders') {
+
+                    if (filters.search) {
+                        params.append(
+                            'search',
+                            filters.search
+                        );
+                    }
+
+                    if (filters.status) {
+                        params.append(
+                            'status',
+                            filters.status
+                        );
+                    }
+                }
+
+
+                // =========================
+                // ORDER LINE FILTERS
+                // =========================
+
+                if (table === 'order_lines') {
+
+                    if (filters.order_id) {
+                        params.append(
+                            'order_id',
+                            filters.order_id
+                        );
+                    }
+
+                    if (filters.product_id) {
+                        params.append(
+                            'product_id',
+                            filters.product_id
+                        );
+                    }
+                }
+
+
+                // =========================
+                // ADDITIONAL COST FILTERS
+                // =========================
+
+                if (table === 'order_additional_costs') {
+
+                    if (filters.order_id) {
+                        params.append(
+                            'order_id',
+                            filters.order_id
+                        );
+                    }
+                }
 
 
                 // =========================
                 // PRODUCT FILTERS
                 // =========================
 
-                if (dataType === 'products') {
+                if (table === 'products') {
 
                     if (filters.name) {
-                        params.append('name', filters.name);
+                        params.append(
+                            'name',
+                            filters.name
+                        );
                     }
 
                     if (filters.style_code) {
@@ -440,10 +146,10 @@ export const apiRequest = async (
 
 
                 // =========================
-                // SUPPLIER FILTERS
+                // MATERIAL FILTERS
                 // =========================
 
-                if (dataType === 'suppliers') {
+                if (table === 'materials') {
 
                     if (filters.status) {
                         params.append(
@@ -460,11 +166,35 @@ export const apiRequest = async (
                     }
                 }
 
+
+                // =========================
+                // SUPPLIER FILTERS
+                // =========================
+
+                if (table === 'suppliers') {
+
+                    if (filters.status) {
+                        params.append(
+                            'status',
+                            filters.status
+                        );
+                    }
+
+                    if (filters.search) {
+                        params.append(
+                            'search',
+                            filters.search
+                        );
+                    }
+                }
+
+
                 // =========================
                 // BOM LINE FILTERS
                 // =========================
 
-                if (dataType === 'bom_lines') {
+                if (table === 'bom_lines') {
+
                     if (filters.product_id) {
                         params.append(
                             'product_id',
@@ -499,7 +229,7 @@ export const apiRequest = async (
                 // AUDIT LOG FILTERS
                 // =========================
 
-                if (dataType === 'audit_logs') {
+                if (table === 'audit_logs') {
 
                     if (filters.search) {
                         params.append(
@@ -550,7 +280,9 @@ export const apiRequest = async (
             method = 'PUT';
 
             if (id == null) {
-                throw new Error('ID is required for update');
+                throw new Error(
+                    `ID is required for ${table} update`
+                );
             }
 
             url += `/${id}`;
@@ -562,7 +294,9 @@ export const apiRequest = async (
             method = 'DELETE';
 
             if (id == null) {
-                throw new Error('ID is required for delete');
+                throw new Error(
+                    `ID is required for ${table} delete`
+                );
             }
 
             url += `/${id}`;
@@ -571,7 +305,9 @@ export const apiRequest = async (
 
 
         default:
-            throw new Error(`Unknown command: ${command}`);
+            throw new Error(
+                `Unknown command: ${command}`
+            );
     }
 
 
@@ -583,11 +319,457 @@ export const apiRequest = async (
     };
 
 
-    if (body !== null && method !== 'GET') {
+    if (
+        body !== null &&
+        method !== 'GET'
+    ) {
         options.body = JSON.stringify(body);
     }
 
+
     return await handleResponse(
         await fetch(url, options)
+    );
+};
+
+
+// =========================
+// ORDER
+// =========================
+
+const getOrder = async (orderId) => {
+
+    if (orderId == null) {
+        throw new Error('Order ID is required');
+    }
+
+    const order = await tableRequest(
+        'orders',
+        'get',
+        orderId
+    );
+
+    const lines = await tableRequest(
+        'order_lines',
+        'get',
+        null,
+        null,
+        {
+            order_id: orderId
+        }
+    );
+
+    const additionalCosts = await tableRequest(
+        'order_additional_costs',
+        'get',
+        null,
+        null,
+        {
+            order_id: orderId
+        }
+    );
+
+    return {
+        ...order,
+        lines,
+        additional_costs: additionalCosts
+    };
+};
+
+
+// =========================
+// UPDATE ORDER
+// =========================
+
+const updateOrder = async (orderId, data) => {
+
+    if (orderId == null) {
+        throw new Error('Order ID is required');
+    }
+
+    const {
+        lines,
+        additional_costs,
+        ...orderData
+    } = data;
+
+
+    // =========================
+    // UPDATE ORDER
+    // =========================
+
+    await tableRequest(
+        'orders',
+        'update',
+        orderId,
+        orderData
+    );
+
+
+    // =========================
+    // UPDATE ORDER LINES
+    // =========================
+
+    if (lines !== undefined) {
+
+        const existingLines = await tableRequest(
+            'order_lines',
+            'get',
+            null,
+            null,
+            {
+                order_id: orderId
+            }
+        );
+
+        const existingIds = new Set(
+            existingLines.map(
+                line => line.id
+            )
+        );
+
+        const receivedIds = new Set(
+            lines
+                .filter(
+                    line => line.id != null
+                )
+                .map(
+                    line => line.id
+                )
+        );
+
+
+        // Delete removed lines
+
+        for (const line of existingLines) {
+
+            if (!receivedIds.has(line.id)) {
+
+                await tableRequest(
+                    'order_lines',
+                    'delete',
+                    line.id
+                );
+            }
+        }
+
+
+        // Add / update lines
+
+        for (const line of lines) {
+
+            if (existingIds.has(line.id)) {
+
+                await tableRequest(
+                    'order_lines',
+                    'update',
+                    line.id,
+                    line
+                );
+
+            } else {
+
+                await tableRequest(
+                    'order_lines',
+                    'add',
+                    null,
+                    {
+                        ...line,
+                        order_id: orderId
+                    }
+                );
+            }
+        }
+    }
+
+
+    // =========================
+    // UPDATE ADDITIONAL COSTS
+    // =========================
+
+    if (additional_costs !== undefined) {
+
+        const existingCosts = await tableRequest(
+            'order_additional_costs',
+            'get',
+            null,
+            null,
+            {
+                order_id: orderId
+            }
+        );
+
+        const existingIds = new Set(
+            existingCosts.map(
+                cost => cost.id
+            )
+        );
+
+        const receivedIds = new Set(
+            additional_costs
+                .filter(
+                    cost => cost.id != null
+                )
+                .map(
+                    cost => cost.id
+                )
+        );
+
+
+        // Delete removed costs
+
+        for (const cost of existingCosts) {
+
+            if (!receivedIds.has(cost.id)) {
+
+                await tableRequest(
+                    'order_additional_costs',
+                    'delete',
+                    cost.id
+                );
+            }
+        }
+
+
+        // Add / update costs
+
+        for (const cost of additional_costs) {
+
+            if (existingIds.has(cost.id)) {
+
+                await tableRequest(
+                    'order_additional_costs',
+                    'update',
+                    cost.id,
+                    cost
+                );
+
+            } else {
+
+                await tableRequest(
+                    'order_additional_costs',
+                    'add',
+                    null,
+                    {
+                        ...cost,
+                        order_id: orderId
+                    }
+                );
+            }
+        }
+    }
+
+
+    return await getOrder(orderId);
+};
+
+
+// =========================
+// MATERIAL
+// =========================
+
+const getMaterial = async (materialId) => {
+
+    if (materialId == null) {
+        throw new Error('Material ID is required');
+    }
+
+    const material = await tableRequest(
+        'materials',
+        'get',
+        materialId
+    );
+
+    const bomLines = await tableRequest(
+        'bom_lines',
+        'get',
+        null,
+        null,
+        {
+            material_id: materialId
+        }
+    );
+
+    return {
+        ...material,
+        bom_lines: bomLines
+    };
+};
+
+
+// =========================
+// UPDATE MATERIAL
+// =========================
+
+const updateMaterial = async (
+    materialId,
+    data
+) => {
+
+    if (materialId == null) {
+        throw new Error('Material ID is required');
+    }
+
+    const {
+        bom_lines,
+        ...materialData
+    } = data;
+
+
+    await tableRequest(
+        'materials',
+        'update',
+        materialId,
+        materialData
+    );
+
+
+    if (bom_lines !== undefined) {
+
+        const existingLines = await tableRequest(
+            'bom_lines',
+            'get',
+            null,
+            null,
+            {
+                material_id: materialId
+            }
+        );
+
+        const existingIds = new Set(
+            existingLines.map(
+                line => line.id
+            )
+        );
+
+        const receivedIds = new Set(
+            bom_lines
+                .filter(
+                    line => line.id != null
+                )
+                .map(
+                    line => line.id
+                )
+        );
+
+
+        // Delete removed BOM lines
+
+        for (const line of existingLines) {
+
+            if (!receivedIds.has(line.id)) {
+
+                await tableRequest(
+                    'bom_lines',
+                    'delete',
+                    line.id
+                );
+            }
+        }
+
+
+        // Add / update BOM lines
+
+        for (const line of bom_lines) {
+
+            if (existingIds.has(line.id)) {
+
+                await tableRequest(
+                    'bom_lines',
+                    'update',
+                    line.id,
+                    line
+                );
+
+            } else {
+
+                await tableRequest(
+                    'bom_lines',
+                    'add',
+                    null,
+                    {
+                        ...line,
+                        material_id: materialId
+                    }
+                );
+            }
+        }
+    }
+
+
+    return await getMaterial(materialId);
+};
+
+
+// =========================
+// MAIN API REQUEST
+// =========================
+
+export const apiRequest = async (
+    dataType,
+    command,
+    id = null,
+    body = null,
+    filters = {}
+) => {
+
+    // =========================
+    // ORDER SPECIAL HANDLING
+    // =========================
+
+    if (
+        dataType === 'orders' &&
+        command === 'get' &&
+        id != null
+    ) {
+        return await getOrder(id);
+    }
+
+
+    if (
+        dataType === 'orders' &&
+        command === 'update'
+    ) {
+        return await updateOrder(
+            id,
+            body
+        );
+    }
+
+
+    // =========================
+    // MATERIAL SPECIAL HANDLING
+    // =========================
+
+    if (
+        dataType === 'materials' &&
+        command === 'get' &&
+        id != null
+    ) {
+        return await getMaterial(id);
+    }
+
+
+    if (
+        dataType === 'materials' &&
+        command === 'update'
+    ) {
+        return await updateMaterial(
+            id,
+            body
+        );
+    }
+
+
+    // =========================
+    // ALL OTHER TABLES
+    // =========================
+
+    return await tableRequest(
+        dataType,
+        command,
+        id,
+        body,
+        filters
     );
 };

@@ -112,7 +112,6 @@ export default function ProductDetailPage({ params }) {
     });
 
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'product',
@@ -134,7 +133,6 @@ export default function ProductDetailPage({ params }) {
     await productRepository.update(id, { status });
 
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'product',
@@ -152,7 +150,6 @@ export default function ProductDetailPage({ params }) {
     const after = await productRepository.softDelete(id);
 
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'product',
@@ -176,7 +173,6 @@ export default function ProductDetailPage({ params }) {
 
     // Create the duplicated product
     const newProduct = await productRepository.create({
-      org_id: currentUser.org_id,
       name: `${product.name} Copy`,
       style_code: `${product.style_code} Copy`,
       sku: `${product.sku} Copy`,
@@ -191,11 +187,12 @@ export default function ProductDetailPage({ params }) {
       status: 'draft',
     });
 
-    const newProductId = newProduct.id;
+    console.log('newProduct:', newProduct);
+    console.log('newProduct.id:', newProduct?.id);
+    const newProductId = newProduct.product.id;
 
     // Create audit for the duplicated product
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'create',
       entity_type: 'product',
@@ -216,7 +213,6 @@ export default function ProductDetailPage({ params }) {
 
       // Audit the new BOM line
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'create',
         entity_type: 'bom_line',
@@ -251,7 +247,6 @@ export default function ProductDetailPage({ params }) {
       });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'product',
@@ -341,7 +336,6 @@ export default function ProductDetailPage({ params }) {
       );
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'bom_line',
@@ -352,7 +346,6 @@ export default function ProductDetailPage({ params }) {
     } else {
 
       const bom = await bomLineRepository.create({
-        org_id: currentUser.org_id,
         product_id: id,
         material_id: bomForm.material_id,
         quantity_per_unit: Number(bomForm.quantity_per_unit),
@@ -362,7 +355,6 @@ export default function ProductDetailPage({ params }) {
       });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'create',
         entity_type: 'bom_line',
@@ -384,7 +376,6 @@ export default function ProductDetailPage({ params }) {
     await bomLineRepository.delete(lineId);
 
     await auditRepository.create({
-      org_id: currentUser.org_id,
       user_id: currentUser.id,
       action: 'delete',
       entity_type: 'bom_line',

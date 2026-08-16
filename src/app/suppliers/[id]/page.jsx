@@ -255,8 +255,6 @@ export default function SupplierDetailPage({ params }) {
         await supplierRepository.update(id, {
           ...form,
 
-          org_id: currentUser.org_id,
-
           lead_time_days:
             form.lead_time_days !== '' &&
               form.lead_time_days != null
@@ -275,7 +273,6 @@ export default function SupplierDetailPage({ params }) {
         updatedSupplier;
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'supplier',
@@ -355,7 +352,6 @@ export default function SupplierDetailPage({ params }) {
         updatedSupplier;
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'supplier',
@@ -365,9 +361,8 @@ export default function SupplierDetailPage({ params }) {
       });
 
       await auditRepository.create({
-        org_id: currentUser.org_id,
         user_id: currentUser.id,
-        action: 'delete',
+        action: 'update',
         entity_type: 'supplier',
         entity_id: id,
         before,
