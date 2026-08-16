@@ -157,18 +157,9 @@ export default function MaterialDetailPage({ params }) {
       errs.name = 'Material name is required';
     }
 
-    // if (!form.internal_code?.trim()) {
-    //   errs.internal_code = 'Internal code is required';
-    // }
-
     if (!form.category) {
       errs.category = 'Category is required';
     }
-
-    // if (!form.supplier_item_code?.trim()) {
-    //   errs.supplier_item_code =
-    //     'Supplier item code is required';
-    // }
 
     if (
       form.unit_cost === '' ||
@@ -187,15 +178,6 @@ export default function MaterialDetailPage({ params }) {
       errs.unit_of_measure =
         'Unit of measurement is required';
     }
-
-    // if (
-    //   form.lead_time === '' ||
-    //   form.lead_time == null ||
-    //   Number(form.lead_time) <= 0
-    // ) {
-    //   errs.lead_time =
-    //     'Lead time must be greater than 0';
-    // }
 
     return errs;
   }
@@ -222,12 +204,6 @@ export default function MaterialDetailPage({ params }) {
             form.unit_cost !== '' &&
               form.unit_cost != null
               ? Number(form.unit_cost)
-              : null,
-
-          lead_time:
-            form.lead_time !== '' &&
-              form.lead_time != null
-              ? Number(form.lead_time)
               : null,
 
           minimum_order_quantity:
@@ -299,9 +275,6 @@ export default function MaterialDetailPage({ params }) {
         ...material,
         id: newId,
         name: `${material.name} (Copy)`,
-        internal_code: material.internal_code
-          ? `${material.internal_code}-COPY`
-          : '',
       };
 
       const response = await materialRepository.create(newMaterial);
@@ -360,7 +333,7 @@ export default function MaterialDetailPage({ params }) {
     <div>
       <PageHeader
         title={material.name}
-        subtitle={`${material.category} · ${material.internal_code || 'No code'}`}
+        subtitle={material.category}
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge status={material.status} />
@@ -399,7 +372,6 @@ export default function MaterialDetailPage({ params }) {
               {editing ? (
                 <div className="grid grid-cols-2 gap-4">
                   <Input label="Material Name" value={form.name || ''} error={errors.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
-                  <Input label="Internal Code" value={form.internal_code || ''} error={errors.internal_code} onChange={(e) => set('internal_code', e.target.value)} />
                   <Select label="Category" value={form.category || ''} error={errors.category} onChange={(e) => set('category', e.target.value)}>
                     {MATERIAL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </Select>
@@ -410,7 +382,6 @@ export default function MaterialDetailPage({ params }) {
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </Select>
-                  <Input label="Supplier Item Code" value={form.supplier_item_code || ''} error={errors.supplier_item_code} onChange={(e) => set('supplier_item_code', e.target.value)} />
                   <Input label="Unit Cost" type="number" step="0.001" value={form.unit_cost ?? ''} min={0} error={errors.unit_cost} onChange={(e) => set('unit_cost', e.target.value)} />
                   {currencies.length === 0 ? (
                     <Input
@@ -432,7 +403,6 @@ export default function MaterialDetailPage({ params }) {
                     </Select>
                   )}
                   <Input label="Unit of Measurement" value={form.unit_of_measurement || ''} error={errors.unit_of_measurement} onChange={(e) => set('unit_of_measurement', e.target.value)} />
-                  <Input label="Lead Time (days)" type="number" value={form.lead_time ?? ''} error={errors.lead_time} onChange={(e) => set('lead_time', e.target.value)} />
                   <Input label="Min. Order Qty" type="number" value={form.minimum_order_quantity ?? ''} error={errors.minimum_order_quantity} onChange={(e) => set('minimum_order_quantity', e.target.value)} />
                   <Textarea label="Description" value={form.description || ''} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
                   <Textarea label="Notes" value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
@@ -442,11 +412,9 @@ export default function MaterialDetailPage({ params }) {
                   <Field label="Category" value={material.category} />
                   <Field label="Color" value={material.color} />
                   <Field label="Supplier" value={supplierName} />
-                  <Field label="Supplier Item Code" value={material.supplier_item_code} />
                   <Field label="Unit Cost" value={material.unit_cost != null ? `€${material.unit_cost}` : null} />
                   <Field label="Currency" value={material.currency} />
                   <Field label="Unit of Measurement" value={material.unit_of_measurement} />
-                  <Field label="Lead Time" value={material.lead_time != null ? `${material.lead_time} days` : null} />
                   <Field label="Min. Order Qty" value={material.minimum_order_quantity} />
                   {material.description && <Field label="Description" value={material.description} className="col-span-2" />}
                   {material.notes && <Field label="Notes" value={material.notes} className="col-span-2" />}
