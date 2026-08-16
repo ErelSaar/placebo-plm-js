@@ -7,7 +7,7 @@ import {
   Modal, Warning, Tabs, Table, Thead, Tbody, Th, Td, Tr, EmptyState,
   formatCurrency, formatDate, Badge,
 } from '@/components/ui';
-import { orderRepository, orderLineRepository } from '@/lib/data/orders';
+import { orderRepository, orderLineRepository } from '@/lib/data/backend-orders';
 import { productRepository } from '@/lib/data/products';
 import { materialRepository } from '@/lib/data/materials';
 import { supplierRepository } from '@/lib/data/suppliers';
@@ -68,22 +68,48 @@ export default function OrderDetailPage({ params }) {
   const [fxRates, setFxRates] = useState([]);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-  function load() {
-    const o = orderRepository.getById(id);
+  // Map backend additional_costs (with `label`) to the form shape (with `name`)
+  function costsToForm(additionalCosts) {
+    return (additionalCosts ?? []).map((ac) => ({
+      id: ac.id,
+      name: ac.label ?? ac.name ?? '',
+      cost_type: ac.cost_type ?? 'fixed',
+      amount: ac.amount ?? '',
+      notes: ac.notes ?? '',
+      sort_order: ac.sort_order ?? 0,
+    }));
+  }
+
+  // Map the backend order object to the metaForm field names used by the edit UI
+  function orderToMetaForm(o) {
+    return {
+      order_number: o.order_number ?? '',
+      order_name: o.name ?? '',                        // backend: name → form: order_name
+      season: o.season ?? '',
+      order_currency: o.order_currency ?? 'EUR',
+      order_date: o.order_date ? o.order_date.slice(0, 10) : '',
+      target_date: o.target_date ? o.target_date.slice(0, 10) : '',
+      production_country: o.production_country ?? '',
+      shipping_destination: o.shipping_destination ?? '',
+    };
+  }
+
+  async function load() {
+    const o = await orderRepository.getById(id);
     if (!o) { router.push('/orders'); return; }
     setOrder(o);
-    setMetaForm(o);
+    setMetaForm(orderToMetaForm(o));
     setCostsForm({
       shipping_cost: o.shipping_cost ?? '',
       shipping_cost_type: o.shipping_cost_type ?? 'fixed',
       customs_cost: o.customs_cost ?? '',
       customs_type: o.customs_type ?? 'fixed',
       cost_allocation_method: o.cost_allocation_method ?? 'by_value',
-      additional_costs: o.additional_costs ?? [],
+      additional_costs: costsToForm(o.additional_costs),
     });
 
-    const lines = orderLineRepository.getByOrder(id);
-    setOrderLines(lines);
+    // Backend getOrder returns lines embedded in o.lines
+    setOrderLines(o.lines ?? []);
 
     const allProducts = productRepository.getAll();
     setProducts(allProducts);
@@ -112,7 +138,7 @@ export default function OrderDetailPage({ params }) {
   }
 
   useEffect(() => {
-    load();
+    load().catch((err) => console.error('Failed to load order:', err));
     loadCurrencies()
       .then(setFxRates)
       .catch((err) => console.error("Failed to load currencies:", err));
@@ -217,28 +243,49 @@ export default function OrderDetailPage({ params }) {
 
   // ─── Meta edit ────────────────────────────────────────────────────────────
 
-  function handleSaveMeta() {
+  async function handleSaveMeta() {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
 
-    const before = orderRepository.getById(id);
+    // Build full update payload — backend does a complete overwrite, so all
+    // fields must be sent. Map frontend form names → backend column names.
+    const updateData = {
+      order_number: metaForm.order_number,
+      name: metaForm.order_name,                 // form: order_name → backend: name
+      season: metaForm.season,
+      order_currency: metaForm.order_currency,
+      order_date: metaForm.order_date,
+      target_date: metaForm.target_date,
+      production_country: metaForm.production_country,
+      shipping_destination: metaForm.shipping_destination,
+      // Preserve cost/status fields from current order state
+      factory: order.factory,
+      status: order.status,
+      shipping_cost: order.shipping_cost,
+      shipping_cost_type: order.shipping_cost_type,
+      customs_cost: order.customs_cost,
+      customs_type: order.customs_type,
+      cost_allocation_method: order.cost_allocation_method,
+      notes: order.notes,
+      spam: order.spam,
+    };
 
-    const updatedOrder = orderRepository.update(id, metaForm);
+    const updatedOrder = await orderRepository.update(id, updateData);
 
     recordRepository.create({
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'order',
       entity_id: id,
-      before,
+      before: order,
       after: updatedOrder,
     });
 
     setEditingMeta(false);
-    load();
+    await load();
   }
 
   function setMeta(field, value) {
@@ -247,61 +294,91 @@ export default function OrderDetailPage({ params }) {
 
   // ─── Status ───────────────────────────────────────────────────────────────
 
-  function handleStatusChange(status) {
-    const oldOrder = orderRepository.getById(id);
-
-    if (!oldOrder) return;
-
-    const updatedOrder = {
-      ...oldOrder,
+  async function handleStatusChange(status) {
+    // Backend does a full UPDATE, so send all current order fields + new status.
+    // order state has backend field names already.
+    const updateData = {
+      order_number: order.order_number,
+      name: order.name,
+      season: order.season,
+      order_currency: order.order_currency,
+      order_date: order.order_date,
+      target_date: order.target_date,
+      production_country: order.production_country,
+      shipping_destination: order.shipping_destination,
+      factory: order.factory,
       status,
+      shipping_cost: order.shipping_cost,
+      shipping_cost_type: order.shipping_cost_type,
+      customs_cost: order.customs_cost,
+      customs_type: order.customs_type,
+      cost_allocation_method: order.cost_allocation_method,
+      notes: order.notes,
+      spam: order.spam,
     };
 
-    orderRepository.update(id, { status });
+    const updatedOrder = await orderRepository.update(id, updateData);
 
     recordRepository.create({
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'order',
       entity_id: id,
-      before: oldOrder,
+      before: order,
       after: updatedOrder,
     });
 
-    load();
+    await load();
   }
 
   // ─── Costs ────────────────────────────────────────────────────────────────
 
-  function handleSaveCosts() {
-    const before = orderRepository.getById(id);
+  async function handleSaveCosts() {
+    // Map form additional_costs (name) → backend format (label)
+    const mappedCosts = costsForm.additional_costs.map((ac, idx) => ({
+      id: ac.id,
+      label: ac.name ?? '',             // form: name → backend: label
+      cost_type: ac.cost_type,
+      amount: ac.amount !== '' ? Number(ac.amount) : 0,
+      sort_order: idx,
+    }));
 
-    const updatedOrder = orderRepository.update(id, {
-      shipping_cost:
-        costsForm.shipping_cost !== ''
-          ? Number(costsForm.shipping_cost)
-          : null,
+    // Full update payload — backend overwrites all columns.
+    const updateData = {
+      order_number: order.order_number,
+      name: order.name,
+      season: order.season,
+      order_currency: order.order_currency,
+      order_date: order.order_date,
+      target_date: order.target_date,
+      production_country: order.production_country,
+      shipping_destination: order.shipping_destination,
+      factory: order.factory,
+      status: order.status,
+      notes: order.notes,
+      spam: order.spam,
+      // Updated cost values
+      shipping_cost: costsForm.shipping_cost !== '' ? Number(costsForm.shipping_cost) : null,
       shipping_cost_type: costsForm.shipping_cost_type,
-      customs_cost:
-        costsForm.customs_cost !== ''
-          ? Number(costsForm.customs_cost)
-          : null,
+      customs_cost: costsForm.customs_cost !== '' ? Number(costsForm.customs_cost) : null,
       customs_type: costsForm.customs_type,
       cost_allocation_method: costsForm.cost_allocation_method,
-      additional_costs: costsForm.additional_costs,
-    });
+      additional_costs: mappedCosts,
+    };
+
+    const updatedOrder = await orderRepository.update(id, updateData);
 
     recordRepository.create({
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'order',
       entity_id: id,
-      before,
+      before: order,
       after: updatedOrder,
     });
 
     setCostsModal(false);
-    load();
+    await load();
   }
 
   function addAdditionalCost() {
@@ -401,7 +478,7 @@ export default function OrderDetailPage({ params }) {
     setLineModal(true);
   }
 
-  function handleSaveLine() {
+  async function handleSaveLine() {
     if (!lineForm.product_id || !lineForm.quantity) return;
 
     const key = `${lineForm.product_id}|${lineForm.color}|${lineForm.size}`;
@@ -420,29 +497,21 @@ export default function OrderDetailPage({ params }) {
       ? null
       : orderLines.find((l) => l.id === lineForm.id);
 
-    const updated = lineForm.isNew
-      ? [
-        ...orderLines,
-        {
-          id: lineForm.id,
-          order_id: id,
-          product_id: lineForm.product_id,
-          color: lineForm.color,
-          size: lineForm.size,
-          quantity: Number(lineForm.quantity),
-        },
-      ]
-      : orderLines.map((l) =>
-        l.id === lineForm.id
-          ? { ...l, ...lineForm, quantity: Number(lineForm.quantity) }
-          : l
-      );
+    const lineData = {
+      order_id: id,
+      product_id: lineForm.product_id,
+      color: lineForm.color,
+      size: lineForm.size,
+      quantity: Number(lineForm.quantity),
+      destination: lineForm.destination ?? null,
+    };
 
-    orderLineRepository.saveMany(id, updated);
-
-    const after = lineForm.isNew
-      ? updated.find((l) => l.id === lineForm.id)
-      : updated.find((l) => l.id === lineForm.id);
+    let savedLine;
+    if (lineForm.isNew) {
+      savedLine = await orderLineRepository.create(lineData);
+    } else {
+      savedLine = await orderLineRepository.update(lineForm.id, lineData);
+    }
 
     recordRepository.create({
       user_id: currentUser.id,
@@ -450,19 +519,17 @@ export default function OrderDetailPage({ params }) {
       entity_type: 'order_line',
       entity_id: lineForm.id,
       before,
-      after,
+      after: lineData,
     });
 
     setLineModal(false);
-    load();
+    await load();
   }
 
-  function handleRemoveLine(lineId) {
+  async function handleRemoveLine(lineId) {
     const before = orderLines.find((l) => l.id === lineId);
 
-    const updated = orderLines.filter((l) => l.id !== lineId);
-
-    orderLineRepository.saveMany(id, updated);
+    await orderLineRepository.delete(lineId);
 
     recordRepository.create({
       user_id: currentUser.id,
@@ -473,13 +540,14 @@ export default function OrderDetailPage({ params }) {
       after: null,
     });
 
-    load();
+    await load();
   }
 
   // ─── Delete ───────────────────────────────────────────────────────────────
 
-  function handleDelete() {
-    orderRepository.softDelete(id);
+  async function handleDelete() {
+    // Backend handles spam-only as a sparse update (doesn't overwrite other fields)
+    await orderRepository.update(id, { spam: true });
 
     recordRepository.create({
       user_id: currentUser.id,
@@ -567,7 +635,7 @@ export default function OrderDetailPage({ params }) {
     <div>
       <PageHeader
         title={order.order_number}
-        subtitle={order.order_name}
+        subtitle={order.name}
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge status={order.status} />
@@ -607,7 +675,7 @@ export default function OrderDetailPage({ params }) {
               <Input label="Shipping Destination" value={metaForm.shipping_destination || ''} error={errors.shipping_destination} onChange={(e) => setMeta('shipping_destination', e.target.value)} />
             </div>
             <div className="flex gap-2 mt-4">
-              <Button onClick={() => { setEditingMeta(false); setMetaForm(order); }}>Cancel</Button>
+              <Button onClick={() => { setEditingMeta(false); setMetaForm(orderToMetaForm(order)); }}>Cancel</Button>
               <Button variant="primary" onClick={handleSaveMeta}>Save</Button>
             </div>
           </Card>
@@ -904,7 +972,7 @@ export default function OrderDetailPage({ params }) {
         title="Order Costs"
         size="lg"
         footer={<>
-          <Button onClick={() => { setCostsModal(false); setCostsForm({ shipping_cost: order.shipping_cost ?? '', shipping_cost_type: order.shipping_cost_type ?? 'fixed', customs_cost: order.customs_cost ?? '', customs_type: order.customs_type ?? 'fixed', cost_allocation_method: order.cost_allocation_method ?? 'by_value', additional_costs: order.additional_costs ?? [] }); }}>Cancel</Button>
+          <Button onClick={() => { setCostsModal(false); setCostsForm({ shipping_cost: order.shipping_cost ?? '', shipping_cost_type: order.shipping_cost_type ?? 'fixed', customs_cost: order.customs_cost ?? '', customs_type: order.customs_type ?? 'fixed', cost_allocation_method: order.cost_allocation_method ?? 'by_value', additional_costs: costsToForm(order.additional_costs) }); }}>Cancel</Button>
           <Button variant="primary" onClick={handleSaveCosts}>Save Costs</Button>
         </>}
       >
@@ -963,7 +1031,7 @@ export default function OrderDetailPage({ params }) {
                   <div key={ac.id} className="flex items-end gap-3">
                     <div
                       className="grid gap-3 items-end flex-1 min-w-0"
-                      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}
+                      style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))' }}
                     >
                       <Input label="Name" value={ac.name} onChange={(e) => updateAdditionalCost(idx, 'name', e.target.value)} />
                       <Select label="Type" value={ac.cost_type} onChange={(e) => updateAdditionalCost(idx, 'cost_type', e.target.value)}>

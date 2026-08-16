@@ -820,7 +820,7 @@ export default function NewOrderPage() {
               {additionalCosts.length === 0 ? (
                 <p className="text-[13px] text-[#737373] py-4">
                   No additional costs. Click &quot;+ Add Cost&quot; to add
-                  shipping, customs, pattern costs, or other charges.
+                  customs, pattern costs, or other charges.
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -828,7 +828,7 @@ export default function NewOrderPage() {
                     <div key={cost._tempId} className="flex items-end gap-3">
                       <div
                         className="grid gap-3 items-end flex-1 min-w-0"
-                        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
+                        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))' }}
                       >
 
                         <Select
