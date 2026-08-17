@@ -138,7 +138,6 @@ export default function AuditLogPage() {
             : '',
         };
 
-        console.log(filters)
         const result = await auditRepository.getAll(filters);
 
         setLogs(result || []);

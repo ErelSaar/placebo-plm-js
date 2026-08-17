@@ -187,8 +187,6 @@ export default function ProductDetailPage({ params }) {
       status: 'draft',
     });
 
-    console.log('newProduct:', newProduct);
-    console.log('newProduct.id:', newProduct?.id);
     const newProductId = newProduct.product.id;
 
     // Create audit for the duplicated product

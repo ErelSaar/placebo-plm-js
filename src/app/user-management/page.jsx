@@ -7,9 +7,11 @@ import {
 } from '@/components/ui';
 import { getRegisteredUsers, getUser, updateUserRole } from '@/lib/auth';
 import { initializePermission, getPermission } from '@/lib/permissions';
-import { recordRepository } from '@/lib/data/action-record';
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
+
+import { userRepository } from '@/lib/data/backend-users';
+import { auditRepository } from '@/lib/data/backend-audit';
 
 const ROLE_OPTIONS = [
   { value: 'viewer', label: 'Viewer' },
@@ -33,16 +35,16 @@ export default function UserManagementPage() {
   const [pendingRole, setPendingRole] = useState({});
   const [saving, setSaving] = useState(null);
   const [ownerConfirm, setOwnerConfirm] = useState(null); // { userId, currentRole }
-    const currentUser = getItems(STORAGE_KEYS.logged_user);
+  const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-  function load() {
+  async function load() {
     initializePermission();
     const permission = getPermission();
     if (permission < 4) {
       router.replace('/');
       return;
     }
-    setUsers(getRegisteredUsers());
+    setUsers(await userRepository.getAll());
   }
 
   useEffect(() => { load(); }, []);
@@ -50,8 +52,8 @@ export default function UserManagementPage() {
   const permission = getPermission();
   if (permission < 4) return null;
 
-  function handleRoleChange(userId, newRole) {
-    const users = getRegisteredUsers();
+  async function handleRoleChange(userId, newRole) {
+    const users = await userRepository.getAll();
     const loggedUser = getUser();
     const currentUser = users.find((user) => (user.id) === (userId));
 
@@ -68,55 +70,88 @@ export default function UserManagementPage() {
     setPendingRole((prev) => ({ ...prev, [userId]: newRole }));
   }
 
-  function handleSave(userId) {
+  async function handleSave(userId) {
     const newRole = pendingRole[userId];
     if (!newRole) return;
 
     const user = users.find((u) => u.id === userId);
+    if (!user) return;
 
-    if (newRole === 'owner' && user?.role !== 'owner') {
+    if (newRole === 'owner' && user.role !== 'owner') {
       setOwnerConfirm({ userId });
       return;
     }
 
     const before = { ...user };
 
-    commitSave(userId, newRole);
+    try {
+      await commitSave(userId, newRole);
 
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: 'update',
-      entity_type: 'user',
-      entity_id: userId,
-      before,
-      after: {
+      const updatedUser = {
         ...user,
         role: newRole,
-      },
-    });
+      };
+
+      await auditRepository.create({
+        user_id: currentUser.id,
+        action: 'update',
+        entity_type: 'user',
+        entity_id: userId,
+        before,
+        after: updatedUser,
+      });
+    } catch (err) {
+      console.error('Failed to update user role:', err);
+    }
   }
 
-  function commitSave(userId, newRole) {
+  async function commitSave(userId, newRole) {
     setSaving(userId);
 
-    updateUserRole(userId, newRole);
+    try {
+      const user = users.find((u) => u.id === userId);
 
-    if (newRole === 'owner') {
-      const loggedUser = getUser();
-
-      if (loggedUser?.id && String(loggedUser.id) !== String(userId)) {
-        updateUserRole(loggedUser.id, 'admin');
+      if (!user) {
+        throw new Error('User not found');
       }
+
+      // Update selected user's role in backend
+      await userRepository.update(userId, {
+        ...user,
+        role: newRole,
+      });
+
+      // If transferring ownership, demote the current owner
+      if (newRole === 'owner') {
+        const loggedUser = getUser();
+
+        if (
+          loggedUser?.id &&
+          String(loggedUser.id) !== String(userId)
+        ) {
+          const loggedUserData = users.find(
+            (u) => String(u.id) === String(loggedUser.id)
+          );
+
+          if (loggedUserData) {
+            await userRepository.update(loggedUser.id, {
+              ...loggedUserData,
+              role: 'manager',
+            });
+          }
+        }
+      }
+
+      setPendingRole((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+
+      await load();
+    } finally {
+      setSaving(null);
     }
-
-    setPendingRole((prev) => {
-      const next = { ...prev };
-      delete next[userId];
-      return next;
-    });
-
-    setSaving(null);
-    load();
   }
 
   function handleCancel(userId) {

@@ -7,12 +7,12 @@ import {
   EmptyState, Modal,
 } from '@/components/ui';
 import { initializePermission, getPermission } from '@/lib/permissions';
-import { supplierRepository } from '@/lib/data/suppliers';
-import { materialRepository } from '@/lib/data/materials';
-import { productRepository } from '@/lib/data/products';
-import { orderRepository, orderLineRepository } from '@/lib/data/orders';
-import { bomRepository } from '@/lib/data/bom';
-import { recordRepository } from '@/lib/data/action-record';
+import { supplierRepository } from '@/lib/data/backend-suppliers';
+import { materialRepository } from '@/lib/data/backend-materials';
+import { productRepository } from '@/lib/data/backend-products';
+import { orderRepository, orderLineRepository, orderAdditionalCostRepository } from '@/lib/data/backend-orders';
+import { bomLineRepository } from '@/lib/data/backend-bom_lines';
+import { auditRepository } from '@/lib/data/backend-audit';
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
 
@@ -41,78 +41,128 @@ export default function SpamPage() {
   const permission = getPermission();
   if (permission < 4) return null;
 
-  function loadAll() {
-    setSuppliers(supplierRepository.getSpam());
-    setMaterials(materialRepository.getSpam());
-    setProducts(productRepository.getSpam());
-    setOrders(orderRepository.getSpam());
+  async function loadAll() {
+    const suppliers = await supplierRepository.getAll();
+    const materials = await materialRepository.getAll();
+    const products = await productRepository.getAll();
+    const orders = await orderRepository.getAll();
+
+    setSuppliers(suppliers.filter((s) => s.spam === true));
+    setMaterials(materials.filter((m) => m.spam === true));
+    setProducts(products.filter((p) => p.spam === true));
+    setOrders(orders.filter((o) => o.spam === true));
   }
 
-  function handleRestore(type, id, name) {
-    if (type === 'Supplier') supplierRepository.restore(id);
-    if (type === 'Material') materialRepository.restore(id);
-    if (type === 'Product') productRepository.restore(id);
-    if (type === 'Order') orderRepository.restore(id);
+  async function handleRestore(type, id, name) {
+    if (type === 'Supplier') {
+      await supplierRepository.update(id, { spam: false });
+    }
 
-    recordRepository.create({
+    if (type === 'Material') {
+      await materialRepository.update(id, { spam: false });
+    }
+
+    if (type === 'Product') {
+      await productRepository.update(id, { spam: false });
+    }
+
+    if (type === 'Order') {
+      await orderRepository.update(id, { spam: false });
+    }
+
+    auditRepository.create({
       user_id: currentUser?.id,
       action: 'restore',
-      entity_type: type,
+      entity_type: type.toLowerCase(),
       entity_id: id,
       before: null,
       after: null,
     });
 
-    loadAll();
+    await loadAll();
   }
 
-  function handleHardDelete() {
+  async function handleHardDelete() {
     if (!confirmHardDelete) return;
-    // Guard: only owner may hard-delete (enforced here in addition to UI hiding)
+
+    // Guard: only owner may delete
     if (getPermission() < 4) return;
 
     const { id, type } = confirmHardDelete;
 
-    if (type === 'Supplier') supplierRepository.hardDelete(id);
-    if (type === 'Material') {
-      // Also remove BOM lines that reference this material
-      const allBOM = bomRepository.getAll();
-      allBOM.filter((b) => b.material_id === id).forEach((b) => bomRepository.remove(b.id));
-      materialRepository.hardDelete(id);
-    }
-    if (type === 'Product') {
-      // Also remove BOM lines and order lines for this product
-      bomRepository.removeByProduct(id);
-      const allOrders = orderRepository.getAll();
-      for (const order of allOrders) {
-        const lines = orderLineRepository.getByOrder(order.id).filter((l) => l.product_id !== id);
-        orderLineRepository.saveMany(order.id, lines);
-      }
-      productRepository.hardDelete(id);
-    }
-    if (type === 'Order') {
-      // orderRepository.hardDelete also removes order lines
-      orderRepository.hardDelete(id);
+    if (type === 'Supplier') {
+      await supplierRepository.delete(id);
     }
 
-    recordRepository.create({
+    if (type === 'Material') {
+      // Also remove BOM lines that reference this material
+      const allBOM = await bomLineRepository.getAll();
+
+      for (const b of allBOM.filter((b) => b.material_id === id)) {
+        await bomLineRepository.delete(b.id);
+      }
+
+      await materialRepository.delete(id);
+    }
+
+    if (type === 'Product') {
+      // Also remove BOM lines that reference this product
+      const allBOM = await bomLineRepository.getAll();
+
+      for (const b of allBOM.filter((b) => b.product_id === id)) {
+        await bomLineRepository.delete(b.id);
+      }
+
+      // Remove order lines that reference this product
+      const allOrders = await orderRepository.getAll();
+
+      for (const order of allOrders) {
+        const lines = await orderLineRepository.getByOrder(order.id);
+
+        for (const line of lines.filter((l) => l.product_id === id)) {
+          await orderLineRepository.delete(line.id);
+        }
+      }
+
+      await productRepository.delete(id);
+    }
+
+    if (type === 'Order') {
+      // Delete order lines belonging to this order
+      const allOrderLines = await orderLineRepository.getAll();
+
+      for (const line of allOrderLines.filter((l) => l.order_id === id)) {
+        await orderLineRepository.delete(line.id);
+      }
+
+      // Delete additional costs belonging to this order
+      const allCosts = await orderAdditionalCostRepository.getAll();
+
+      for (const cost of allCosts.filter((c) => c.order_id === id)) {
+        await orderAdditionalCostRepository.delete(cost.id);
+      }
+
+      await orderRepository.delete(id);
+    }
+
+    auditRepository.create({
       user_id: currentUser?.id,
-      action: 'HARD_delete',
-      entity_type: type,
+      action: 'delete',
+      entity_type: type.toLowerCase(),
       entity_id: id,
       before: null,
       after: null,
     });
 
     setConfirmHardDelete(null);
-    loadAll();
+
+    await loadAll();
   }
 
   const tabClass = (tab) =>
-    `px-4 py-2 text-[13px] font-medium rounded transition-colors ${
-      activeTab === tab
-        ? 'bg-[#0a0a0a] text-white'
-        : 'text-[#525252] hover:bg-[#f5f5f5]'
+    `px-4 py-2 text-[13px] font-medium rounded transition-colors ${activeTab === tab
+      ? 'bg-[#0a0a0a] text-white'
+      : 'text-[#525252] hover:bg-[#f5f5f5]'
     }`;
 
   const rowClass = 'opacity-60';
