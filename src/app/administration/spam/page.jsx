@@ -11,6 +11,7 @@ import { supplierRepository } from '@/lib/data/backend-suppliers';
 import { materialRepository } from '@/lib/data/backend-materials';
 import { productRepository } from '@/lib/data/backend-products';
 import { orderRepository, orderLineRepository, orderAdditionalCostRepository } from '@/lib/data/backend-orders';
+import { attachmentRepository } from '@/lib/data/backend-attachment';
 import { bomLineRepository } from '@/lib/data/backend-bom_lines';
 import { auditRepository } from '@/lib/data/backend-audit';
 import { getItems } from '@/lib/data/storage';
@@ -106,7 +107,19 @@ export default function SpamPage() {
     }
 
     if (type === 'Product') {
-      // Also remove BOM lines that reference this product
+
+      // Get product before deleting it
+      const productResult = await productRepository.getById(id);
+      const product = productResult.product || productResult;
+
+      // Delete attachment if the product has one
+      if (product?.attachment_id) {
+        await attachmentRepository.delete(
+          product.attachment_id
+        );
+      }
+
+      // Remove BOM lines that reference this product
       const allBOM = await bomLineRepository.getAll();
 
       for (const b of allBOM.filter((b) => b.product_id === id)) {
@@ -124,6 +137,7 @@ export default function SpamPage() {
         }
       }
 
+      // Finally delete the product
       await productRepository.delete(id);
     }
 
@@ -145,7 +159,7 @@ export default function SpamPage() {
       await orderRepository.delete(id);
     }
 
-    auditRepository.create({
+    await auditRepository.create({
       user_id: currentUser?.id,
       action: 'delete',
       entity_type: type.toLowerCase(),

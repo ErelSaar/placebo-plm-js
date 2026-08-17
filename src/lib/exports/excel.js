@@ -24,11 +24,11 @@ export function exportOrderToExcel(data) {
     ['PLACEBO – Order Export'],
     [],
     ['Order Number', order.order_number],
-    ['Order Name', order.order_name],
+    ['Order Name', order.name],
     ['Status', order.status],
     ['Season', order.season],
     ['Production Country', order.production_country ?? ''],
-    ['Production Factory', order.production_factory ?? ''],
+    ['Production Factory', order.factory ?? ''],
     ['Shipping Destination', order.shipping_destination ?? ''],
     ['Order Date', order.order_date],
     ['Target Date', order.target_date],
@@ -134,7 +134,7 @@ export function exportOrderToExcel(data) {
       rm.material.category,
       supplierName,
       rm.total_quantity,
-      rm.material.unit_of_measurement,
+      rm.material.unit_of_measure,
       fmt(rm.unit_cost),
       fmt(rm.estimated_cost),
       fmt(rm.allocated_shipping),
@@ -162,7 +162,7 @@ export function exportOrderToExcel(data) {
     const supplierName = group.supplier?.name ?? 'No Supplier';
     const country = group.supplier?.country ?? '';
     const materialNames = group.materials.map((m) => m.material.name).join(', ');
-    const quantities = group.materials.map((m) => `${m.total_quantity} ${m.material.unit_of_measurement}`).join(', ');
+    const quantities = group.materials.map((m) => `${m.total_quantity} ${m.material.unit_of_measure}`).join(', ');
     supRows.push([
       supplierName,
       country,

@@ -9,6 +9,7 @@ import {
 // import { productRepository } from '@/lib/data/products';
 import { productRepository } from '@/lib/data/backend-products.js';
 import { auditRepository } from '@/lib/data/backend-audit.js';
+import { attachmentRepository } from '@/lib/data/backend-attachment';
 import { PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { recordRepository } from '@/lib/data/action-record';
 import { v4 as uuidv4 } from 'uuid';
@@ -118,32 +119,75 @@ export default function ProductsPage() {
 
     const currentUser = getItems(STORAGE_KEYS.logged_user);
 
-    let imageUrl = form.image_url || '';
+    let attachmentId = null;
+    let imageUrl = null;
 
-    // If a local file was selected, attempt to upload it first
+    // =========================
+    // CREATE ATTACHMENT FIRST
+    // =========================
+
     if (pendingImageFile) {
-      try {
-        const uploadedUrl = await attemptImageUpload(pendingImageFile, {
-          entityType: 'product',
-          uploadedBy: currentUser?.id ?? null,
-        });
-        if (uploadedUrl) imageUrl = uploadedUrl;
-      } catch (err) {
-        console.warn('Image upload failed, saving product without image:', err.message);
+      const formData = new FormData();
+
+      formData.append(
+        'file',
+        pendingImageFile
+      );
+
+      formData.append(
+        'entity_type',
+        'product'
+      );
+
+      // Product does not exist yet, so entity_id
+      // cannot be sent here.
+      // The attachment endpoint must therefore allow
+      // the attachment to be created without entity_id,
+      // or you need to create the product first.
+      if (currentUser?.id) {
+        formData.append(
+          'uploaded_by',
+          currentUser.id
+        );
       }
+
+      const attachment =
+        await attachmentRepository.create(formData);
+
+      attachmentId = attachment.id;
+      imageUrl = attachment.url;
     }
+
+
+    // =========================
+    // CREATE PRODUCT
+    // =========================
 
     const product = {
       ...form,
+
       image_url: imageUrl,
-      selling_price: form.selling_price !== '' ? Number(form.selling_price) : null,
-      pricing_multiplier: Number(form.pricing_multiplier) || 3.5,
+      attachment_id: attachmentId,
+
+      selling_price:
+        form.selling_price !== ''
+          ? Number(form.selling_price)
+          : null,
+
+      pricing_multiplier:
+        Number(form.pricing_multiplier) || 3.5,
     };
 
-    const result = await productRepository.create(product);
+    const result =
+      await productRepository.create(product);
 
     const createdProduct = result.product;
     const id = createdProduct.id;
+
+
+    // =========================
+    // AUDIT
+    // =========================
 
     await auditRepository.create({
       user_id: currentUser.id,
@@ -154,9 +198,14 @@ export default function ProductsPage() {
       after: product,
     });
 
+
     setModal(false);
+
     await load();
-    router.push(`/products/${id}`);
+
+    router.push(
+      `/products/${id}`
+    );
   }
 
   function set(field, value) {

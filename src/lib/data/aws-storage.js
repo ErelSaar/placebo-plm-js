@@ -713,6 +713,62 @@ const updateMaterial = async (
     return await getMaterial(materialId);
 };
 
+async function getAttachments(id = null) {
+
+    const url = id
+        ? `${BASE_URL}/attachments/${id}`
+        : `${BASE_URL}/attachments`;
+
+    const response = await fetch(url, {
+        method: 'GET'
+    });
+
+    return await handleResponse(response);
+}
+
+
+async function addAttachment(formData) {
+
+    const response = await fetch(
+        `${BASE_URL}/attachments`,
+        {
+            method: 'POST',
+            body: formData
+        }
+    );
+
+    return await handleResponse(response);
+}
+
+
+async function updateAttachment(id, data) {
+
+    const response = await fetch(
+        `${BASE_URL}/attachments/${id}`,
+        {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        }
+    );
+
+    return await handleResponse(response);
+}
+
+
+async function deleteAttachment(id) {
+
+    const response = await fetch(
+        `${BASE_URL}/attachments/${id}`,
+        {
+            method: 'DELETE'
+        }
+    );
+
+    return await handleResponse(response);
+}
 
 // =========================
 // MAIN API REQUEST
@@ -773,7 +829,27 @@ export const apiRequest = async (
         );
     }
 
+    // =========================
+    // ATTACHMENT
+    // =========================
 
+    if (dataType === 'attachments') {
+        if (command === 'get') {
+            return await getAttachments(id, filters);
+        }
+
+        if (command === 'add') {
+            return await addAttachment(body);
+        }
+
+        if (command === 'update') {
+            return await updateAttachment(id, body);
+        }
+
+        if (command === 'delete') {
+            return await deleteAttachment(id);
+        }
+    }
     // =========================
     // ALL OTHER TABLES
     // =========================

@@ -31,7 +31,7 @@ export function exportOrderToPDF(data) {
   doc.text(order.order_number, 196, 18, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(order.order_name, 196, 23, { align: 'right' });
+  doc.text(order.name, 196, 23, { align: 'right' });
 
   // ─── Order Info ─────────────────────────────────────────────────────────
   autoTable(doc, {
@@ -40,7 +40,7 @@ export function exportOrderToPDF(data) {
     body: [
       ['Status', order.status, 'Season', order.season ?? '—'],
       ['Order Date', order.order_date ?? '—', 'Target Date', order.target_date ?? '—'],
-      ['Production Country', order.production_country ?? '—', 'Factory', order.production_factory ?? '—'],
+      ['Production Country', order.production_country ?? '—', 'Factory', order.factory ?? '—'],
       ['Shipping Destination', order.shipping_destination ?? '—', 'Currency', currency],
     ],
     theme: 'plain',
@@ -101,7 +101,7 @@ export function exportOrderToPDF(data) {
     rm.material.name,
     rm.material.category,
     rm.material.supplier?.name ?? '—',
-    `${rm.total_quantity} ${rm.material.unit_of_measurement}`,
+    `${rm.total_quantity} ${rm.material.unit_of_measure}`,
     fmt(rm.unit_cost),
     fmt(rm.estimated_cost),
     fmt(rm.allocated_shipping),

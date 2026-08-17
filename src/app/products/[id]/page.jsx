@@ -13,12 +13,13 @@ import { materialRepository } from '@/lib/data/backend-materials.js';
 import { bomLineRepository } from '@/lib/data/backend-bom_lines';
 import { supplierRepository } from '@/lib/data/suppliers';
 import { orderRepository, orderLineRepository } from '@/lib/data/orders';
+import { attachmentRepository } from '@/lib/data/backend-attachment';
+import { auditRepository } from '@/lib/data/backend-audit.js';
 import { calculateBOMCost, calculateProductCostSummary } from '@/lib/calculations';
 import { MATERIAL_CATEGORY_GROUPS, PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
 import { recordRepository } from '@/lib/data/action-record';
-import { auditRepository } from '@/lib/data/backend-audit.js';
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
 import { ProductImageUpload, attemptImageUpload } from '@/components/product-image-upload';
@@ -105,32 +106,83 @@ export default function ProductDetailPage({ params }) {
 
     const before = product;
 
+    let attachmentId = product?.attachment_id ?? null;
     let imageUrl = form.image_url ?? null;
 
-    // If a local file was selected, attempt to upload it before saving
+    // =========================
+    // IMAGE / ATTACHMENT
+    // =========================
+
     if (pendingImageFile) {
-      try {
-        const uploadedUrl = await attemptImageUpload(pendingImageFile, {
-          entityType: 'product',
-          entityId: id,
-          uploadedBy: currentUser?.id ?? null,
-        });
-        if (uploadedUrl) imageUrl = uploadedUrl;
-      } catch (err) {
-        console.warn('Image upload failed, preserving existing image_url:', err.message);
-        // Keep whatever imageUrl was already in form (could be existing or null if user removed it)
+      // New image selected
+      const formData = new FormData();
+
+      formData.append(
+        'file',
+        pendingImageFile
+      );
+
+      formData.append(
+        'entity_type',
+        'product'
+      );
+
+      formData.append(
+        'entity_id',
+        id
+      );
+
+      if (currentUser?.id) {
+        formData.append(
+          'uploaded_by',
+          currentUser.id
+        );
       }
-      setPendingImageFile(null);
+
+      const attachment =
+        await attachmentRepository.create(formData);
+
+      attachmentId = attachment.id;
+      imageUrl = attachment.url;
+
+    } else if (
+      !form.image_url &&
+      product?.attachment_id
+    ) {
+      // Existing image was removed
+      await attachmentRepository.delete(
+        product.attachment_id
+      );
+
+      attachmentId = null;
+      imageUrl = null;
     }
 
-    const updatedProduct = await productRepository.update(id, {
-      ...form,
-      image_url: imageUrl,
-      selling_price:
-        form.selling_price !== '' && form.selling_price != null
-          ? Number(form.selling_price)
-          : null,
-    });
+    setPendingImageFile(null);
+
+
+    // =========================
+    // UPDATE PRODUCT
+    // =========================
+
+    const updatedProduct =
+      await productRepository.update(id, {
+        ...form,
+
+        image_url: imageUrl,
+        attachment_id: attachmentId,
+
+        selling_price:
+          form.selling_price !== '' &&
+            form.selling_price != null
+            ? Number(form.selling_price)
+            : null,
+      });
+
+
+    // =========================
+    // AUDIT
+    // =========================
 
     await auditRepository.create({
       user_id: currentUser.id,
@@ -142,6 +194,7 @@ export default function ProductDetailPage({ params }) {
     });
 
     setEditing(false);
+
     load();
   }
 
