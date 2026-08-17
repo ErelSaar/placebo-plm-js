@@ -258,8 +258,21 @@ const tableRequest = async (
                             filters.entity_type
                         );
                     }
-                }
 
+                    if (filters.dateFrom) {
+                        params.append(
+                            'dateFrom',
+                            filters.dateFrom
+                        );
+                    }
+
+                    if (filters.dateTo) {
+                        params.append(
+                            'dateTo',
+                            filters.dateTo
+                        );
+                    }
+                }
 
                 const queryString = params.toString();
 
