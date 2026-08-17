@@ -63,16 +63,15 @@ export default function OrdersPage() {
       !statusFilter ||
       o.status === statusFilter;
 
-    return matchSearch && matchStatus;
+    return o.spam === false && matchSearch && matchStatus;
   });
 
   return (
     <div>
       <PageHeader
         title="Orders"
-        subtitle={`${filtered.length} order${
-          filtered.length !== 1 ? 's' : ''
-        }`}
+        subtitle={`${filtered.length} order${filtered.length !== 1 ? 's' : ''
+          }`}
         actions={
           <Button
             variant="primary"

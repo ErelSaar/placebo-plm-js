@@ -8,10 +8,11 @@ import {
   formatCurrency, formatDate, Badge,
 } from '@/components/ui';
 import { orderRepository, orderLineRepository } from '@/lib/data/backend-orders';
-import { productRepository } from '@/lib/data/products';
-import { materialRepository } from '@/lib/data/materials';
-import { supplierRepository } from '@/lib/data/suppliers';
-import { bomRepository } from '@/lib/data/bom';
+import { productRepository } from '@/lib/data/backend-products';
+import { materialRepository } from '@/lib/data/backend-materials';
+import { supplierRepository } from '@/lib/data/backend-suppliers';
+import { bomLineRepository } from '@/lib/data/backend-bom_lines';
+import { auditRepository } from '@/lib/data/backend-audit';
 import {
   calculateRequiredMaterials,
   applyLandedCostAllocation,
@@ -24,7 +25,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
-import { recordRepository } from '@/lib/data/action-record';
 import {
   getRate,
   convertCurrency,
@@ -72,11 +72,10 @@ export default function OrderDetailPage({ params }) {
   function costsToForm(additionalCosts) {
     return (additionalCosts ?? []).map((ac) => ({
       id: ac.id,
-      name: ac.label ?? ac.name ?? '',
-      cost_type: ac.cost_type ?? 'fixed',
+      cost_type: ac.cost_type ?? 'custom',
       amount: ac.amount ?? '',
-      notes: ac.notes ?? '',
-      sort_order: ac.sort_order ?? 0,
+      currency: ac.currency ?? '',
+      description: ac.description ?? '',
     }));
   }
 
@@ -111,17 +110,17 @@ export default function OrderDetailPage({ params }) {
     // Backend getOrder returns lines embedded in o.lines
     setOrderLines(o.lines ?? []);
 
-    const allProducts = productRepository.getAll();
+    const allProducts = await productRepository.getAll();
     setProducts(allProducts);
     setAllProductsList(allProducts.filter((p) => p.status === 'active'));
 
-    const allMaterials = materialRepository.getAll();
+    const allMaterials = await materialRepository.getAll();
     setMaterials(allMaterials);
 
-    const allSuppliers = supplierRepository.getAll();
+    const allSuppliers = await supplierRepository.getAll();
     setSuppliers(allSuppliers);
 
-    const allBOM = bomRepository.getAll();
+    const allBOM = await bomLineRepository.getAll();
     setBomLines(allBOM);
     initializePermission();
 
@@ -275,7 +274,7 @@ export default function OrderDetailPage({ params }) {
 
     const updatedOrder = await orderRepository.update(id, updateData);
 
-    recordRepository.create({
+    auditRepository.create({
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'order',
@@ -319,7 +318,7 @@ export default function OrderDetailPage({ params }) {
 
     const updatedOrder = await orderRepository.update(id, updateData);
 
-    recordRepository.create({
+    auditRepository.create({
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'order',
@@ -334,16 +333,15 @@ export default function OrderDetailPage({ params }) {
   // ─── Costs ────────────────────────────────────────────────────────────────
 
   async function handleSaveCosts() {
-    // Map form additional_costs (name) → backend format (label)
-    const mappedCosts = costsForm.additional_costs.map((ac, idx) => ({
+    const mappedCosts = costsForm.additional_costs.map((ac) => ({
       id: ac.id,
-      label: ac.name ?? '',             // form: name → backend: label
+      order_id: id,
       cost_type: ac.cost_type,
       amount: ac.amount !== '' ? Number(ac.amount) : 0,
-      sort_order: idx,
+      currency: ac.currency || order.order_currency,
+      description: ac.description?.trim() || null,
     }));
 
-    // Full update payload — backend overwrites all columns.
     const updateData = {
       order_number: order.order_number,
       name: order.name,
@@ -357,18 +355,29 @@ export default function OrderDetailPage({ params }) {
       status: order.status,
       notes: order.notes,
       spam: order.spam,
-      // Updated cost values
-      shipping_cost: costsForm.shipping_cost !== '' ? Number(costsForm.shipping_cost) : null,
+
+      shipping_cost:
+        costsForm.shipping_cost !== ''
+          ? Number(costsForm.shipping_cost)
+          : null,
+
       shipping_cost_type: costsForm.shipping_cost_type,
-      customs_cost: costsForm.customs_cost !== '' ? Number(costsForm.customs_cost) : null,
+
+      customs_cost:
+        costsForm.customs_cost !== ''
+          ? Number(costsForm.customs_cost)
+          : null,
+
       customs_type: costsForm.customs_type,
+
       cost_allocation_method: costsForm.cost_allocation_method,
+
       additional_costs: mappedCosts,
     };
 
     const updatedOrder = await orderRepository.update(id, updateData);
 
-    recordRepository.create({
+    auditRepository.create({
       user_id: currentUser.id,
       action: 'update',
       entity_type: 'order',
@@ -384,10 +393,10 @@ export default function OrderDetailPage({ params }) {
   function addAdditionalCost() {
     const newCost = {
       id: uuidv4(),
-      name: '',
-      cost_type: 'fixed',
+      cost_type: 'other',
       amount: '',
-      notes: '',
+      currency: order.order_currency,
+      description: '',
     };
 
     setCostsForm((prev) => ({
@@ -397,15 +406,6 @@ export default function OrderDetailPage({ params }) {
         newCost,
       ],
     }));
-
-    recordRepository.create({
-      user_id: currentUser.id,
-      action: 'create',
-      entity_type: 'order_additional_cost',
-      entity_id: newCost.id,
-      before: null,
-      after: newCost,
-    });
   }
 
   function updateAdditionalCost(index, field, value) {
@@ -419,7 +419,7 @@ export default function OrderDetailPage({ params }) {
         [field]: value,
       };
 
-      recordRepository.create({
+      auditRepository.create({
         user_id: currentUser.id,
         action: 'update',
         entity_type: 'order_additional_cost',
@@ -444,7 +444,7 @@ export default function OrderDetailPage({ params }) {
 
       if (!removedCost) return prev;
 
-      recordRepository.create({
+      auditRepository.create({
         user_id: currentUser.id,
         action: 'delete',
         entity_type: 'order_additional_cost',
@@ -461,7 +461,7 @@ export default function OrderDetailPage({ params }) {
       };
     });
   }
-  
+
   function setCosts(field, value) {
     setCostsForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -513,7 +513,7 @@ export default function OrderDetailPage({ params }) {
       savedLine = await orderLineRepository.update(lineForm.id, lineData);
     }
 
-    recordRepository.create({
+    auditRepository.create({
       user_id: currentUser.id,
       action: lineForm.isNew ? 'create' : 'update',
       entity_type: 'order_line',
@@ -531,7 +531,7 @@ export default function OrderDetailPage({ params }) {
 
     await orderLineRepository.delete(lineId);
 
-    recordRepository.create({
+    auditRepository.create({
       user_id: currentUser.id,
       action: 'delete',
       entity_type: 'order_line',
@@ -549,10 +549,10 @@ export default function OrderDetailPage({ params }) {
     // Backend handles spam-only as a sparse update (doesn't overwrite other fields)
     await orderRepository.update(id, { spam: true });
 
-    recordRepository.create({
+    auditRepository.create({
       user_id: currentUser.id,
       action: 'delete',
-      entity_type: 'Order',
+      entity_type: 'order',
       entity_id: id,
       before: order,
       after: null,
@@ -1182,10 +1182,10 @@ function CurrencyRateInfo({ orderCurrency, displayCurrency, fxRate, isConverting
 
   const rateDate = fxRate.rate_date
     ? new Date(fxRate.rate_date).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      })
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
     : null;
 
   return (

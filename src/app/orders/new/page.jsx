@@ -242,9 +242,7 @@ export default function NewOrderPage() {
       errs.order_date = 'Order date is required';
     }
 
-    if (!form.target_date) {
-      errs.target_date = 'Target date is required';
-    }
+    // target_date is optional
 
     if (!form.production_country?.trim()) {
       errs.production_country = 'Production country is required';
@@ -262,29 +260,68 @@ export default function NewOrderPage() {
       errs.destination_address = 'Destination address is required';
     }
 
+    // Shipping cost is optional and defaults to 0.
+    // If entered, it must be a non-negative number.
+    if (
+      form.shipping_cost !== '' &&
+      form.shipping_cost !== null &&
+      form.shipping_cost !== undefined &&
+      (isNaN(Number(form.shipping_cost)) || Number(form.shipping_cost) < 0)
+    ) {
+      errs.shipping_cost = 'Shipping cost must be a non-negative number';
+    }
+
+    // A confirmed order must contain at least one product.
     if (status === 'confirmed' && lines.length === 0) {
       errs.lines = 'At least one product is required to confirm an order';
     }
 
+    // Prevent duplicate product + color + size combinations.
     if (hasDuplicate()) {
-      errs.lines = 'Duplicate product + color + size combinations are not allowed';
+      errs.lines =
+        'Duplicate product + color + size combinations are not allowed';
     }
 
-    // Validate additional costs (skip fully blank rows — they are omitted on save)
+    // Additional costs are completely optional.
+    // Each row that is used must have:
+    // - cost type
+    // - amount
+    // - currency
     additionalCosts.forEach((cost, i) => {
       const hasType = !!cost.cost_type;
-      const hasAmount = cost.amount !== '' && cost.amount !== null && cost.amount !== undefined;
-      const blank = !hasType && !hasAmount && !cost.description?.trim();
-      if (blank) return; // will be skipped on save
+      const hasAmount =
+        cost.amount !== '' &&
+        cost.amount !== null &&
+        cost.amount !== undefined;
+      const hasCurrency = !!cost.currency;
+      const hasDescription = !!cost.description?.trim();
+
+      // Completely empty row is allowed and will not be saved.
+      const blank =
+        !hasType &&
+        !hasAmount &&
+        !hasCurrency &&
+        !hasDescription;
+
+      if (blank) return;
 
       if (!hasType) {
-        errs[`additional_cost_${i}_type`] = 'Cost type is required';
+        errs[`additional_cost_${i}_type`] =
+          'Cost type is required';
       }
-      if (!hasAmount || isNaN(Number(cost.amount)) || Number(cost.amount) < 0) {
-        errs[`additional_cost_${i}_amount`] = 'Amount must be a non-negative number';
+
+      if (
+        !hasAmount ||
+        isNaN(Number(cost.amount)) ||
+        Number(cost.amount) < 0
+      ) {
+        errs[`additional_cost_${i}_amount`] =
+          'Amount must be a non-negative number';
       }
-      if (!cost.currency) {
-        errs[`additional_cost_${i}_currency`] = 'Currency is required';
+
+      if (!hasCurrency) {
+        errs[`additional_cost_${i}_currency`] =
+          'Currency is required';
       }
     });
 
@@ -305,28 +342,34 @@ export default function NewOrderPage() {
 
     try {
       const order = {
-        ...form,
+        order_number: form.order_number,
+        name: form.order_name,
         status,
-        shipping_cost: form.shipping_cost !== '' ? Number(form.shipping_cost) : null,
-        shipping_cost_type: 'fixed',
-        customs_cost: null,
-        customs_type: 'fixed',
-        cost_allocation_method: 'by_value',
+        season: form.season || null,
+        factory: form.production_factory || null,
+        production_country: form.production_country || null,
+        shipping_destination: form.shipping_destination || null,
+        destination_address: form.destination_address || null,
+        order_date: form.order_date || null,
+        target_date: form.target_date || null,
+        order_currency: form.order_currency,
+        shipping_cost:
+          form.shipping_cost !== '' && form.shipping_cost !== null
+            ? Number(form.shipping_cost)
+            : 0,
+        notes: form.notes || null,
         spam: false,
       };
 
-      // Database creates the ID.
+      // Database generates the order ID.
       const createdResponse = await orderRepository.create(order);
-
-      // Backend returns:
-      // { success: true, order: {...} }
       const createdOrder = createdResponse.order;
 
       if (!createdOrder?.id) {
         throw new Error('Order was created but no ID was returned');
       }
 
-      // Create order lines only after the order exists.
+      // Create order lines.
       for (const line of lines) {
         await orderLineRepository.create({
           order_id: createdOrder.id,
@@ -338,21 +381,28 @@ export default function NewOrderPage() {
         });
       }
 
-      // Save additional costs — skip fully blank rows.
+      // Create additional costs.
+      // There can be zero, one, or many.
       const costsToSave = additionalCosts.filter(
-        (c) => c.cost_type || (c.amount !== '' && c.amount !== null)
+        (cost) =>
+          cost.cost_type ||
+          (cost.amount !== '' &&
+            cost.amount !== null &&
+            cost.amount !== undefined) ||
+          cost.description?.trim()
       );
+
       for (const cost of costsToSave) {
         await orderAdditionalCostRepository.create({
           order_id: createdOrder.id,
-          cost_type: cost.cost_type,
+          description: cost.description?.trim() || null,
           amount: Number(cost.amount),
+          cost_type: cost.cost_type,
           currency: cost.currency || form.order_currency,
-          description: cost.description || null,
         });
       }
 
-      // One audit record for the new order.
+      // One audit record for the entire order creation.
       await auditRepository.create({
         user_id: currentUser.id,
         action: 'create',
@@ -820,7 +870,7 @@ export default function NewOrderPage() {
               {additionalCosts.length === 0 ? (
                 <p className="text-[13px] text-[#737373] py-4">
                   No additional costs. Click &quot;+ Add Cost&quot; to add
-                  customs, pattern costs, or other charges.
+                  shipping, customs, pattern costs, or other charges.
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -828,7 +878,7 @@ export default function NewOrderPage() {
                     <div key={cost._tempId} className="flex items-end gap-3">
                       <div
                         className="grid gap-3 items-end flex-1 min-w-0"
-                        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))' }}
+                        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
                       >
 
                         <Select
