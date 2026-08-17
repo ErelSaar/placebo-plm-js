@@ -15,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
+import { ProductImageUpload, attemptImageUpload } from '@/components/product-image-upload';
 
 const BLANK = {
   name: '',
@@ -44,6 +45,7 @@ export default function ProductsPage() {
   const [form, setForm] = useState(BLANK);
   const [errors, setErrors] = useState({});
   const [currencies, setCurrencies] = useState([]);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
 
   async function load() {
     initializePermission();
@@ -74,6 +76,7 @@ export default function ProductsPage() {
   function openModal() {
     setForm(BLANK);
     setErrors({});
+    setPendingImageFile(null);
     setModal(true);
   }
 
@@ -115,8 +118,24 @@ export default function ProductsPage() {
 
     const currentUser = getItems(STORAGE_KEYS.logged_user);
 
+    let imageUrl = form.image_url || '';
+
+    // If a local file was selected, attempt to upload it first
+    if (pendingImageFile) {
+      try {
+        const uploadedUrl = await attemptImageUpload(pendingImageFile, {
+          entityType: 'product',
+          uploadedBy: currentUser?.id ?? null,
+        });
+        if (uploadedUrl) imageUrl = uploadedUrl;
+      } catch (err) {
+        console.warn('Image upload failed, saving product without image:', err.message);
+      }
+    }
+
     const product = {
       ...form,
+      image_url: imageUrl,
       selling_price: form.selling_price !== '' ? Number(form.selling_price) : null,
       pricing_multiplier: Number(form.pricing_multiplier) || 3.5,
     };
@@ -262,7 +281,11 @@ export default function ProductsPage() {
           )}
           <Textarea label="Description" value={form.description} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
           <Textarea label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
-          <Input label="Image URL (optional)" value={form.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." className="col-span-2" />
+          <ProductImageUpload
+            imageUrl={form.image_url || null}
+            onImageUrlChange={(url) => set('image_url', url ?? '')}
+            onFileSelect={(file) => setPendingImageFile(file)}
+          />
         </div>
       </Modal>
     </div>

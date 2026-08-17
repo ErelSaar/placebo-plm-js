@@ -21,6 +21,7 @@ import { recordRepository } from '@/lib/data/action-record';
 import { auditRepository } from '@/lib/data/backend-audit.js';
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
+import { ProductImageUpload, attemptImageUpload } from '@/components/product-image-upload';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -50,6 +51,7 @@ export default function ProductDetailPage({ params }) {
   const [multiplier, setMultiplier] = useState(3.5);
   const [errors, setErrors] = useState({});
   const [currencies, setCurrencies] = useState([]);
+  const [pendingImageFile, setPendingImageFile] = useState(null);
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
   async function load() {
@@ -94,7 +96,7 @@ export default function ProductDetailPage({ params }) {
   }
 
   async function handleSave() {
-    const errs = validate();
+    const errs = await validate();
 
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
@@ -103,8 +105,27 @@ export default function ProductDetailPage({ params }) {
 
     const before = product;
 
+    let imageUrl = form.image_url ?? null;
+
+    // If a local file was selected, attempt to upload it before saving
+    if (pendingImageFile) {
+      try {
+        const uploadedUrl = await attemptImageUpload(pendingImageFile, {
+          entityType: 'product',
+          entityId: id,
+          uploadedBy: currentUser?.id ?? null,
+        });
+        if (uploadedUrl) imageUrl = uploadedUrl;
+      } catch (err) {
+        console.warn('Image upload failed, preserving existing image_url:', err.message);
+        // Keep whatever imageUrl was already in form (could be existing or null if user removed it)
+      }
+      setPendingImageFile(null);
+    }
+
     const updatedProduct = await productRepository.update(id, {
       ...form,
+      image_url: imageUrl,
       selling_price:
         form.selling_price !== '' && form.selling_price != null
           ? Number(form.selling_price)
@@ -418,6 +439,7 @@ export default function ProductDetailPage({ params }) {
                   onClick={() => {
                     setEditing(false);
                     setForm(product);
+                    setPendingImageFile(null);
                   }}
                 >
                   Cancel
@@ -522,7 +544,6 @@ export default function ProductDetailPage({ params }) {
                     <Input label="Pricing Multiplier" type="number" step="0.1" value={form.pricing_multiplier ?? 3.5} min={0.1} onChange={(e) => set('pricing_multiplier', e.target.value)} />
                     <Textarea label="Description" value={form.description || ''} onChange={(e) => set('description', e.target.value)} className="col-span-2" />
                     <Textarea label="Notes" value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} className="col-span-2" />
-                    <Input label="Image URL (optional)" value={form.image_url || ''} onChange={(e) => set('image_url', e.target.value)} placeholder="https://..." className="col-span-2" />
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-x-8 gap-y-4">
@@ -544,16 +565,24 @@ export default function ProductDetailPage({ params }) {
 
             <div className="space-y-4">
               <Card className="p-4 overflow-hidden">
-                {product.image_url ? (
+                {!editing && (product.image_url ? (
                   <img
                     src={product.image_url}
                     alt={product.name}
                     className="w-full rounded object-cover max-h-56"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 ) : (
                   <div className="w-full h-32 rounded bg-[#f5f5f5] flex items-center justify-center">
                     <span className="text-[12px] text-[#a3a3a3]">No image</span>
                   </div>
+                ))}
+                {editing && (
+                  <ProductImageUpload
+                    imageUrl={form.image_url ?? null}
+                    onImageUrlChange={(url) => set('image_url', url ?? null)}
+                    onFileSelect={(file) => setPendingImageFile(file)}
+                  />
                 )}
               </Card>
               <Card className="p-5">
