@@ -14,6 +14,7 @@ import {
   Input,
   Select,
   Badge,
+  Modal,
 } from '@/components/ui';
 import { initializePermission, getPermission } from '@/lib/permissions';
 import { auditRepository } from '@/lib/data/backend-audit';
@@ -99,6 +100,123 @@ function formatDateTime(isoString) {
   });
 }
 
+// ─── Snapshot helpers ─────────────────────────────────────────────────────────
+
+function toLabel(key) {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function toDisplayValue(value) {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '—';
+    return value
+      .map((v) => (typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)))
+      .join(', ');
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+// Fields that are typically internal / low-value noise
+const SKIP_FIELDS = new Set(['spam', 'created_at', 'updated_at']);
+
+function getEntityName(log) {
+  const candidates = [log.after, log.before].filter(Boolean);
+  for (const obj of candidates) {
+    const name =
+      obj.name ||
+      obj.order_name ||
+      obj.username ||
+      obj.email ||
+      null;
+    if (name) return name;
+  }
+  return null;
+}
+
+// ─── Snapshot modal ───────────────────────────────────────────────────────────
+
+function SnapshotModal({ open, onClose, title, before, after }) {
+  if (!open) return null;
+
+  const isUpdate = before && after;
+  const obj = after || before || {};
+  const keys = Object.keys(obj).filter((k) => !SKIP_FIELDS.has(k));
+
+  // For updates, collect all keys from both objects
+  const allKeys = isUpdate
+    ? [...new Set([...Object.keys(before), ...Object.keys(after)]).values()].filter(
+        (k) => !SKIP_FIELDS.has(k)
+      )
+    : keys;
+
+  return (
+    <Modal open={open} onClose={onClose} title={title} size="md">
+      <table className="w-full text-[13px]">
+        <thead>
+          <tr className="border-b border-[#e5e5e5]">
+            <th className="text-left py-2 pr-4 font-medium text-[#737373] w-2/5">Field</th>
+            {isUpdate ? (
+              <>
+                <th className="text-left py-2 pr-4 font-medium text-[#737373]">Before</th>
+                <th className="text-left py-2 font-medium text-[#737373]">After</th>
+              </>
+            ) : (
+              <th className="text-left py-2 font-medium text-[#737373]">Value</th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {allKeys.map((key) => {
+            const beforeVal = isUpdate ? before[key] : undefined;
+            const afterVal = isUpdate ? after[key] : obj[key];
+            const changed =
+              isUpdate && JSON.stringify(beforeVal) !== JSON.stringify(afterVal);
+
+            return (
+              <tr
+                key={key}
+                className={`border-b border-[#f0f0f0] ${changed ? 'bg-amber-50' : ''}`}
+              >
+                <td className="py-2 pr-4 text-[#737373] font-medium">{toLabel(key)}</td>
+                {isUpdate ? (
+                  <>
+                    <td className={`py-2 pr-4 ${changed ? 'text-red-600 line-through' : ''}`}>
+                      {toDisplayValue(beforeVal)}
+                    </td>
+                    <td className={`py-2 ${changed ? 'text-green-700 font-medium' : ''}`}>
+                      {toDisplayValue(afterVal)}
+                    </td>
+                  </>
+                ) : (
+                  <td className="py-2">{toDisplayValue(afterVal)}</td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Modal>
+  );
+}
+
+// ─── Snapshot trigger button ──────────────────────────────────────────────────
+
+function ViewButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-2 py-0.5 text-[12px] border border-[#e5e5e5] rounded hover:bg-[#f5f5f5] text-[#737373] hover:text-[#0a0a0a] transition-colors"
+    >
+      View
+    </button>
+  );
+}
+
 export default function AuditLogPage() {
   const router = useRouter();
 
@@ -109,6 +227,7 @@ export default function AuditLogPage() {
   const [entityTypeFilter, setEntityTypeFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [snapshotModal, setSnapshotModal] = useState(null); // { title, before, after }
 
   useEffect(() => {
     initializePermission();
@@ -290,48 +409,106 @@ export default function AuditLogPage() {
                 <Th>Role</Th>
                 <Th>Action</Th>
                 <Th>Entity Type</Th>
+                <Th>Entity / Record</Th>
+                <Th>Before</Th>
+                <Th>After</Th>
               </tr>
             </Thead>
 
             <Tbody>
-              {logs.map((entry, i) => (
-                <Tr key={entry.id ?? i}>
-                  <Td className="whitespace-nowrap text-[#737373]">
-                    {formatDateTime(entry.created_at)}
-                  </Td>
+              {logs.map((entry, i) => {
+                const entityName = getEntityName(entry);
+                const hasBefore = !!entry.before;
+                const hasAfter = !!entry.after;
+                const isUpdate = entry.action?.toLowerCase() === 'update';
 
-                  <Td className="font-medium">
-                    {entry.name || entry.username || '—'}
-                  </Td>
+                return (
+                  <Tr key={entry.id ?? i}>
+                    <Td className="whitespace-nowrap text-[#737373]">
+                      {formatDateTime(entry.created_at)}
+                    </Td>
 
-                  <Td>
-                    <Badge variant="muted">
-                      {entry.role || '—'}
-                    </Badge>
-                  </Td>
+                    <Td className="font-medium">
+                      {entry.name || entry.username || '—'}
+                    </Td>
 
-                  <Td>
-                    <Badge
-                      variant={
-                        ACTION_BADGE_VARIANT[entry.action] ?? 'muted'
-                      }
-                    >
-                      {formatActionLabel(
-                        entry.action,
-                        entry.entity_type
+                    <Td>
+                      <Badge variant="muted">
+                        {entry.role || '—'}
+                      </Badge>
+                    </Td>
+
+                    <Td>
+                      <Badge
+                        variant={
+                          ACTION_BADGE_VARIANT[entry.action] ?? 'muted'
+                        }
+                      >
+                        {formatActionLabel(
+                          entry.action,
+                          entry.entity_type
+                        )}
+                      </Badge>
+                    </Td>
+
+                    <Td>
+                      {entry.entity_type || '—'}
+                    </Td>
+
+                    <Td className="text-[#737373]">
+                      {entityName || <span className="text-[#b0b0b0] text-[12px]">{entry.entity_id || '—'}</span>}
+                    </Td>
+
+                    <Td>
+                      {hasBefore ? (
+                        <ViewButton
+                          onClick={() =>
+                            setSnapshotModal({
+                              title: isUpdate
+                                ? `${entry.entity_type || 'Record'} — Changes`
+                                : `${entry.entity_type || 'Record'} — Before`,
+                              before: entry.before,
+                              after: isUpdate ? entry.after : null,
+                            })
+                          }
+                        />
+                      ) : (
+                        <span className="text-[#b0b0b0]">—</span>
                       )}
-                    </Badge>
-                  </Td>
+                    </Td>
 
-                  <Td>
-                    {entry.entity_type || '—'}
-                  </Td>
-                </Tr>
-              ))}
+                    <Td>
+                      {hasAfter && !isUpdate ? (
+                        <ViewButton
+                          onClick={() =>
+                            setSnapshotModal({
+                              title: `${entry.entity_type || 'Record'} — After`,
+                              before: null,
+                              after: entry.after,
+                            })
+                          }
+                        />
+                      ) : isUpdate ? (
+                        <span className="text-[12px] text-[#b0b0b0] italic">see Before</span>
+                      ) : (
+                        <span className="text-[#b0b0b0]">—</span>
+                      )}
+                    </Td>
+                  </Tr>
+                );
+              })}
             </Tbody>
           </Table>
         )}
       </div>
+
+      <SnapshotModal
+        open={!!snapshotModal}
+        onClose={() => setSnapshotModal(null)}
+        title={snapshotModal?.title || ''}
+        before={snapshotModal?.before || null}
+        after={snapshotModal?.after || null}
+      />
     </div>
   );
 }
