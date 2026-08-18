@@ -9,7 +9,6 @@ import {
 import { materialRepository } from '@/lib/data/backend-materials';
 import { supplierRepository } from '@/lib/data/backend-suppliers';
 import { MATERIAL_CATEGORY_GROUPS, MATERIAL_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
-import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
 import { auditRepository } from '@/lib/data/backend-audit';
 import { getItems } from '@/lib/data/storage';
