@@ -32,6 +32,12 @@ export default function LoginPage() {
       );
 
       if (result.success) {
+        if (result.user.approved === false) {
+          setError('Your account is pending approval by an administrator.');
+          setLoading(false);
+          return;
+        }
+
         // Store the logged-in user
         localStorage.setItem(
           'plm_logged_user',

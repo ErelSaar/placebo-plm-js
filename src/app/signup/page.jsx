@@ -126,7 +126,7 @@ export default function SignUpPage() {
           <div className="bg-white border border-[#e5e5e5] rounded-lg px-8 py-8 text-center">
             <p className="text-[15px] font-semibold tracking-tight mb-2">Account created</p>
             <p className="text-[13px] text-[#737373] mb-6">
-              Your account has been created successfully. Please log in.
+              Your account has been created and is pending approval by an administrator. You will be able to log in once approved.
             </p>
             <Link
               href="/login"

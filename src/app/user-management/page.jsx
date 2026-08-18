@@ -34,6 +34,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [pendingRole, setPendingRole] = useState({});
   const [saving, setSaving] = useState(null);
+  const [savingApproval, setSavingApproval] = useState(null);
   const [ownerConfirm, setOwnerConfirm] = useState(null); // { userId, currentRole }
   const currentUser = getItems(STORAGE_KEYS.logged_user);
 
@@ -162,6 +163,33 @@ export default function UserManagementPage() {
     });
   }
 
+  async function handleApprovalToggle(userId) {
+    const user = users.find((u) => u.id === userId);
+    if (!user) return;
+
+    const newApproved = !user.approved;
+    setSavingApproval(userId);
+
+    try {
+      await userRepository.update(userId, { ...user, approved: newApproved });
+
+      await auditRepository.create({
+        user_id: currentUser.id,
+        action: 'update',
+        entity_type: 'user',
+        entity_id: userId,
+        before: { ...user },
+        after: { ...user, approved: newApproved },
+      });
+
+      await load();
+    } catch (err) {
+      console.error('Failed to update approval:', err);
+    } finally {
+      setSavingApproval(null);
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -180,6 +208,7 @@ export default function UserManagementPage() {
                 <Th>Email</Th>
                 <Th>Current Role</Th>
                 <Th>Change Role</Th>
+                <Th>Approval</Th>
                 <Th></Th>
               </tr>
             </Thead>
@@ -205,6 +234,21 @@ export default function UserManagementPage() {
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </Select>
+                    </Td>
+                    <Td>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={u.approved === false ? 'muted' : 'success'}>
+                          {u.approved === false ? 'Pending Approval' : 'Approved'}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant={u.approved === false ? 'primary' : undefined}
+                          loading={savingApproval === u.id}
+                          onClick={() => handleApprovalToggle(u.id)}
+                        >
+                          {u.approved === false ? 'Approve' : 'Revoke'}
+                        </Button>
+                      </div>
                     </Td>
                     <Td>
                       {isDirty && (
