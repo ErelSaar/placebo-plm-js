@@ -46,7 +46,7 @@ const ACTION_BADGE_VARIANT = {
   create: 'success',
   update: 'warning',
   delete: 'danger',
-  restore: 'success',
+  restore: 'safety',
   HARD_delete: 'danger',
 };
 
@@ -75,7 +75,7 @@ function formatActionLabel(action, entityType) {
   }
 
   if (normalizedAction === 'restore') {
-    return 'Record Restored';
+    return `${normalizedEntity} restored`;
   }
 
   if (normalizedAction === 'hard_delete') {

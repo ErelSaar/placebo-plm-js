@@ -70,6 +70,7 @@ const BADGE_VARIANTS = {
   default: 'bg-[#0a0a0a] text-white',
   success: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   warning: 'bg-amber-50 text-amber-700 border border-amber-200',
+  safety: 'bg-cyan-50 text-cyan-600 border border-cyan-150',
   danger: 'bg-red-50 text-red-700 border border-red-200',
   muted: 'bg-[#f5f5f5] text-[#737373]',
 };

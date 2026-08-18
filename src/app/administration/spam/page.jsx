@@ -71,7 +71,7 @@ export default function SpamPage() {
       await orderRepository.update(id, { spam: false });
     }
 
-    auditRepository.create({
+    await auditRepository.create({
       user_id: currentUser?.id,
       action: 'restore',
       entity_type: type.toLowerCase(),
