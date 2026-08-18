@@ -9,10 +9,8 @@ import {
 import { orderRepository, orderLineRepository, orderAdditionalCostRepository } from '@/lib/data/backend-orders';
 import { productRepository } from '@/lib/data/backend-products';
 import { auditRepository } from '@/lib/data/backend-audit';
-import { v4 as uuidv4 } from 'uuid';
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
-import { recordRepository } from '@/lib/data/action-record';
 import { loadCurrencies } from '@/lib/data/currency';
 import { getRate, convertCurrency, roundForDisplay } from '@/lib/currency';
 

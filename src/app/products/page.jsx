@@ -6,13 +6,10 @@ import {
   PageHeader, Button, StatusBadge, Table, Thead, Tbody, Th, Td, Tr,
   EmptyState, Input, Select, Modal, Textarea,
 } from '@/components/ui';
-// import { productRepository } from '@/lib/data/products';
 import { productRepository } from '@/lib/data/backend-products.js';
 import { auditRepository } from '@/lib/data/backend-audit.js';
 import { attachmentRepository } from '@/lib/data/backend-attachment';
 import { PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
-import { recordRepository } from '@/lib/data/action-record';
-import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';

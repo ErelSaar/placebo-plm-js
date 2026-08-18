@@ -7,7 +7,6 @@ import {
   Modal, Warning, Tabs, Table, Thead, Tbody, Th, Td, Tr, EmptyState,
   formatCurrency, Badge,
 } from '@/components/ui';
-// import { productRepository } from '@/lib/data/products';
 import { productRepository } from '@/lib/data/backend-products.js';
 import { materialRepository } from '@/lib/data/backend-materials.js';
 import { bomLineRepository } from '@/lib/data/backend-bom_lines';
@@ -17,9 +16,7 @@ import { attachmentRepository } from '@/lib/data/backend-attachment';
 import { auditRepository } from '@/lib/data/backend-audit.js';
 import { calculateBOMCost, calculateProductCostSummary } from '@/lib/calculations';
 import { MATERIAL_CATEGORY_GROUPS, PRODUCT_CATEGORIES, STORAGE_KEYS } from '@/lib/constants';
-import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../../lib/permissions";
-import { recordRepository } from '@/lib/data/action-record';
 import { getItems } from '@/lib/data/storage';
 import { loadCurrencies } from '@/lib/data/currency';
 import { ProductImageUpload, attemptImageUpload } from '@/components/product-image-upload';

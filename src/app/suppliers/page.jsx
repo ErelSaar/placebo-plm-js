@@ -12,7 +12,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { initializePermission, getPermission } from "../../lib/permissions";
 import { getItems } from '@/lib/data/storage';
 import { STORAGE_KEYS } from '@/lib/constants';
-import { recordRepository } from '@/lib/data/action-record';
 import { auditRepository } from '@/lib/data/backend-audit';
 
 const BLANK = {
