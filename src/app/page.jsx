@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader, StatCard, Card, StatusBadge, formatDate } from '@/components/ui';
-import { productRepository } from '@/lib/data/products';
-import { materialRepository } from '@/lib/data/materials';
-import { supplierRepository } from '@/lib/data/suppliers';
-import { bomRepository } from '@/lib/data/bom';
-import { orderRepository, orderLineRepository } from '@/lib/data/orders';
+import { productRepository } from '@/lib/data/backend-products';
+import { materialRepository } from '@/lib/data/backend-materials';
+import { supplierRepository } from '@/lib/data/backend-suppliers';
+import { bomLineRepository } from '@/lib/data/backend-bom_lines';
+import { orderRepository, orderLineRepository } from '@/lib/data/backend-orders';
 import { getApproachingOrders } from '@/lib/calculations';
 import { initializePermission } from '@/lib/permissions';
 
@@ -15,42 +15,70 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    const products = productRepository.getAll();
-    const materials = materialRepository.getAll();
-    const suppliers = supplierRepository.getAll();
-    const orders = orderRepository.getAll();
-    const orderLines = orderLineRepository.getAll();
-    const bomLines = bomRepository.getAll();
+    async function load() {
+      try {
+        const [products, materials, suppliers, orders, orderLines, bomLines] = await Promise.all([
+          productRepository.getAll(),
+          materialRepository.getAll(),
+          supplierRepository.getAll(),
+          orderRepository.getAll(),
+          orderLineRepository.getAll(),
+          bomLineRepository.getAll(),
+        ]);
 
-    const activeProducts = products.filter((p) => p.status === 'active');
-    const activeOrders = orders.filter((o) => o.status !== 'completed' && o.status !== 'cancelled');
-    const totalUnits = orderLines.reduce((acc, l) => acc + l.quantity, 0);
-    const approaching = getApproachingOrders(orders, 60);
+        // Exclude soft-deleted records (backend does not filter spam automatically)
+        const liveProducts = products.filter((p) => !p.spam);
+        const liveOrders = orders.filter((o) => !o.spam);
+        const liveMaterials = materials.filter((m) => !m.spam);
+        const liveSuppliers = suppliers.filter((s) => !s.spam);
 
-    // Products missing BOM data
-    const missingBOM = activeProducts.filter((p) => {
-      const bom = bomLines.filter((b) => b.product_id === p.id);
-      return bom.length === 0;
-    });
+        // Active Products: status === 'active', not spam
+        const activeProducts = liveProducts.filter((p) => p.status === 'active');
 
-    // Recent orders sorted by created_at desc
-    const recentOrders = [...orders]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-      .slice(0, 5);
+        // Active Orders: only confirmed or in_progress, not spam
+        const activeOrders = liveOrders.filter(
+          (o) => o.status === 'confirmed' || o.status === 'in_progress'
+        );
 
-    setData({
-      stats: {
-        activeProducts: activeProducts.length,
-        activeOrders: activeOrders.length,
-        totalUnits,
-        materials: materials.filter((m) => m.status === 'active').length,
-        suppliers: suppliers.filter((s) => s.status === 'active').length,
-      },
-      recentOrders,
-      approaching,
-      missingBOM,
-      orderLines,
-    });
+        // Total Units: sum quantities from lines belonging to active orders only
+        const activeOrderIds = new Set(activeOrders.map((o) => o.id));
+        const totalUnits = orderLines
+          .filter((l) => activeOrderIds.has(l.order_id))
+          .reduce((acc, l) => acc + Number(l.quantity || 0), 0);
+
+        // Approaching Deadlines: non-completed/cancelled, non-spam, within 60 days
+        const approaching = getApproachingOrders(liveOrders, 60);
+
+        // Products Missing BOM data (active, non-spam products only)
+        const missingBOM = activeProducts.filter((p) => {
+          const bom = bomLines.filter((b) => b.product_id === p.id);
+          return bom.length === 0;
+        });
+
+        // Recent Orders: latest 5 non-spam orders by created_at
+        const recentOrders = [...liveOrders]
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5);
+
+        setData({
+          stats: {
+            activeProducts: activeProducts.length,
+            activeOrders: activeOrders.length,
+            totalUnits,
+            materials: liveMaterials.filter((m) => m.status === 'active').length,
+            suppliers: liveSuppliers.filter((s) => s.status === 'active').length,
+          },
+          recentOrders,
+          approaching,
+          missingBOM,
+          orderLines,
+        });
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err);
+      }
+    }
+
+    load();
   }, []);
 
   if (!data) return null;
@@ -96,7 +124,7 @@ export default function DashboardPage() {
                     >
                       <div>
                         <p className="text-[13px] font-medium">{order.order_number}</p>
-                        <p className="text-[12px] text-[#737373]">{order.order_name}</p>
+                        <p className="text-[12px] text-[#737373]">{order.name}</p>
                       </div>
                       <div className="flex items-center gap-3 text-right">
                         <div>
